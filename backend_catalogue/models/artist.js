@@ -18,7 +18,7 @@ const artistSchema = mongoose.Schema({
   }
 })
 
-blogSchema.set('toJSON', {
+artistSchema.set('toJSON', {
   transform: (document, returnedObject) => {
     returnedObject.id = returnedObject._id.toString()
     delete returnedObject._id
@@ -26,6 +26,6 @@ blogSchema.set('toJSON', {
   }
 })
 
-const Artist =  mongoose.model('Artist', ArtistSchema)
+const Artist =  mongoose.model('Artist', artistSchema)
 
 module.exports = Artist

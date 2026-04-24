@@ -6,10 +6,12 @@ const playSchema = mongoose.Schema({
   title: String,
   scriptEditor:String,
   author: String,
+  likes:Number,
   director:    {
       type: mongoose.Schema.Types.ObjectId,
       ref:'Artist' //The ref field specifies the name of the model being referenced
     },
+  url:String,
   theater: { type: mongoose.Schema.Types.ObjectId, ref: 'Theater' },
   startDate: Date,
   endDate:Date,

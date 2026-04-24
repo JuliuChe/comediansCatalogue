@@ -3,7 +3,7 @@ const usersRouter = require('express').Router()
 const User = require('../models/user')
 
 usersRouter.post('/', async (request, response) => {
-  const { username, name, password } = request.body
+  const { username, name, email, password } = request.body
   if(!password || password.trim().length<3){
     return response.status(422).json({ error : 'password with at least 3 characters required' })
   }
@@ -13,6 +13,7 @@ usersRouter.post('/', async (request, response) => {
   const user = new User({
     username,
     name,
+    email,
     passwordHash
   })
 

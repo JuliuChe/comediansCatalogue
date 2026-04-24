@@ -19,6 +19,7 @@ const userSchema = mongoose.Schema({
     default: 'artist'  // tous vos users actuels seront des artists
   },
   name:String,
+  email:String,
   passwordHash:String
 })
 
