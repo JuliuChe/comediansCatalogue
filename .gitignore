@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Environment variables (IMPORTANT : ne jamais commit !)
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build
+dist/
+build/
+
+# Editor
+.vscode/
+.idea/
+.DS_Store
+
+# Tests
+coverage/
