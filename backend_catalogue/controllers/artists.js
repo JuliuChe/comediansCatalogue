@@ -6,27 +6,68 @@ const Artist = require('../models/artist')
 
 
 artistsRouter.get('/', async (request, response) => {
-  const plays = await Play.find({})
+  const artists = await Artist.find({})
     .populate('user', { username: 1, name: 1 })
-    .populate('director', { firstName: 1, lastName: 1 })
-    .populate('theater', { name: 1 })
-    .populate('artists.artist', { firstName: 1, lastName: 1 })
-      .populate(
-      {path:'artist',
-      select:'firstName lastName plays',
-      populate: {
-        path:'plays',
-        select:'title author startDate endDate theater',
-        populate: {
-          path:'theater',
-          select:'name'
-        }
-      }
+    
+  response.json(artists)
+})
+
+artistsRouter.get('/search', async (request, response) => {
+  // ../api/search?q=${query}
+  const query = request.query.q || ''
+  if (query.length<2) {
+    return response.json([])
+  }
+
+  const safeQuery = escapeRegex(query)
+  const regex = new RegExp(`^${safeQuery}`, 'i') // 'i' = insensible à la casse
+
+  const artists = await Artist
+    .find({
+      $or: [{firstName:regex},{lastName:regex}]
     })
-  response.json(plays)
-  // Blog.find({}).then((blogs) => {
-  //   response.json(blogs)
-  // })
+    .limit(10)
+    .select('firstName lastName')
+
+    return response.json(artists)
+})
+
+artistsRouter.get('/:id/plays', async (request, response) =>{
+  const plays = await Play.find({
+    $or:[      
+      {director:request.params.id},
+      {'artists.artist':request.params.id}
+    ]
+  })
+    .populate('theater', 'name city')
+    .sort({startDate:-1})
+
+    response.json(plays)
+})
+
+artistsRouter.post('/', async (request, response) =>{
+  const user = request.user
+  if(!user){
+    return response.status(401).json({error: 'token invalid'})
+
+      const { firstName, lastName, dateOfBirth } = request.body
+
+  if (!firstName || !lastName) {
+    return response.status(400).json({ 
+      error: 'firstName and lastName are required' 
+    })
+  }
+
+  const artist = new Artist({
+    firstName,
+    lastName,
+    biography,
+    dateOfBirth
+  })
+
+  const savedArtist = await artist.save()
+  response.status(201).json(savedArtist)
+  }
 })
 
 // blogsRouter.post('/', async (request, response) => {

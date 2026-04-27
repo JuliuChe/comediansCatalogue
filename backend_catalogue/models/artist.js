@@ -3,15 +3,17 @@ const mongoose = require('mongoose')
 mongoose.set('strictQuery', false)
 
 const artistSchema = mongoose.Schema({
-  firstName: String,
-  lastName: String,
-  birthDate: Date,
-  plays: [
-    {
-      type: mongoose.Schema.Types.ObjectId,
-      ref:'Play' //The ref field specifies the name of the model being referenced
-    }
-  ],
+  firstName: {
+    type:String,
+    required: true,
+    trim: true
+  },
+  lastName: {
+    type:String,
+    required: true,
+    trim: true
+  },
+  dateOfBirth: Date,
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref:'User'

@@ -6,9 +6,9 @@ import LoginForm from './components/LoginForm'
 import SubscribeForm from './components/SubscribeForm'
 import PlayForm from './components/PlayForm'
 
-import playService from './services/plays'
-import loginService from './services/login'
-import userService from './services/user'
+import playService from './api/requests/plays'
+import loginService from './api/requests/login'
+import userService from './api/requests/user'
 
 import { Routes, Route, Link, useMatch } from 'react-router-dom'
 import { Container, Toolbar, AppBar, Button, Box } from '@mui/material'
