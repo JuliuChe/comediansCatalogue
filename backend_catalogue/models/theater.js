@@ -3,7 +3,7 @@ mongoose.set('strictQuery',false)
 
 const theaterSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  adress: {
+  address: {
     street: String,
     city: String,
     postalCode: String,

@@ -3,24 +3,40 @@ const mongoose = require('mongoose')
 mongoose.set('strictQuery', false)
 
 const userSchema = mongoose.Schema({
-  artist: {
+  artistProfile: {
       type: mongoose.Schema.Types.ObjectId,
-      ref:'Artist' //The ref field specifies the name of the model being referenced
+      ref:'Artist', //The ref field specifies the name of the model being referenced
+      default: null,
+      unique:true,
+      sparse:true
   },
   username: {
     type: String,
     required: true,
     minLength: 3,
-    unique: true
+    unique: true,
+    lowercase: true,
+    trim: true
   },
-  role: {
+  firstName:{
+    type:String,
+    required: true,
+    trim : true},
+  lastName:{
+    type:String,
+    required: true,
+    trim : true},
+  email:{
     type: String,
-    enum: ['artist', 'agent', 'admin'],
-    default: 'artist'  // tous vos users actuels seront des artists
-  },
-  name:String,
-  email:String,
-  passwordHash:String
+    required: true,
+    minLength: 3,
+    unique: true,
+    lowercase: true,
+    trim: true},
+  passwordHash: {
+     type: String,
+    required: true
+  } 
 })
 
 userSchema.set('toJSON', {

@@ -1,16 +1,27 @@
+const { findSimilarArtists, similarity, normalizeFields } = require('../utils/stringMatching')
+const { escapeRegex } = require('../utils/escapeRegex')
+const { paginate } = require('../utils/paginate')
+const { paginationMiddleware } = require('../utils/middleware')
+
 const artistsRouter = require('express').Router()
 const Play = require('../models/play')
-const User = require('../models/user')
 const Artist = require('../models/artist')
 
 
 
-artistsRouter.get('/', async (request, response) => {
-  const artists = await Artist.find({})
-    .populate('user', { username: 1, name: 1 })
-    
-  response.json(artists)
-})
+artistsRouter.get('/', paginationMiddleware({maxLimit:100}), 
+  async (request, response, next) => {
+    try {
+      const result = await paginate(Artist, 
+        {
+          populate:{path:'createdBy', select:'username'},
+          sort: {firstName:1, lastName:1},
+          ...request.pagination})
+      response.json(result)
+    } catch(err){
+      next(err)
+    }
+  })
 
 artistsRouter.get('/search', async (request, response) => {
   // ../api/search?q=${query}
@@ -29,7 +40,20 @@ artistsRouter.get('/search', async (request, response) => {
     .limit(10)
     .select('firstName lastName')
 
-    return response.json(artists)
+  const sorted = artists
+    .map(a => ({
+      artist: a,
+      score: Math.max(
+        similarity(a.firstName, query),
+        similarity(a.lastName, query),
+        similarity(`${a.firstName} ${a.lastName}`, query)
+      )
+    }))
+    .sort((a, b) => b.score - a.score)
+    .map(item => item.artist)
+
+
+    return response.json(sorted)
 })
 
 artistsRouter.get('/:id/plays', async (request, response) =>{
@@ -47,10 +71,9 @@ artistsRouter.get('/:id/plays', async (request, response) =>{
 
 artistsRouter.post('/', async (request, response) =>{
   const user = request.user
-  if(!user){
-    return response.status(401).json({error: 'token invalid'})
+  if(!user) return response.status(401).json({error: 'token invalid'})
 
-      const { firstName, lastName, dateOfBirth } = request.body
+  const { firstName, lastName, dateOfBirth, forceCreate } = normalizeFields(request.body, ['firstName', 'lastName'])
 
   if (!firstName || !lastName) {
     return response.status(400).json({ 
@@ -58,91 +81,27 @@ artistsRouter.post('/', async (request, response) =>{
     })
   }
 
+  if (!forceCreate) {
+    const similar = await findSimilarArtists(Artist, firstName, lastName)
+    //TODO do not check for doublons here. 
+    // If a post request is issued, there should not be a doublons (pre-check)
+    if (similar.length > 0) {
+      return response.status(409).json({
+        error: 'similar_artists_found',
+        message: 'Des artists au nom similaire existent déjà. Est-ce un doublon ?',
+        similar
+      })
+    }
+  }
   const artist = new Artist({
     firstName,
     lastName,
-    biography,
-    dateOfBirth
+    dateOfBirth,
+    createdBy:user._id
   })
 
   const savedArtist = await artist.save()
   response.status(201).json(savedArtist)
-  }
 })
-
-// blogsRouter.post('/', async (request, response) => {
-//   const body = request.body
-//   if (body.likes === undefined) {
-//     body.likes = 0
-//   }
-
-//   if (!body.title || !body.url) {
-//     return response.status(400).end()
-//   }
-
-//   if (!request.token) {
-//     return response.status(401).json({ error: 'token missing' })
-//   }
-
-//   const user = await User.findById(request.user)
-
-//   if(!user){
-//     return response.status(400).json({ error: 'user id is not in the DB' })
-//   }
-//   const blog = new Blog({
-//     title:body.title,
-//     author:body.author,
-//     url:body.url,
-//     likes:body.likes,
-//     user:user.id
-//   })
-
-
-//   user.blogs = user.blogs.concat(blog.id)
-//   await user.save()
-
-//   const savedBlog = await blog.save()
-//   const populatedBlog = await savedBlog.populate('user',{ username :1, name:1 })
-//   console.log(populatedBlog)
-//   response.status(201).json(populatedBlog)
-
-// })
-
-// blogsRouter.delete('/:id', async (request, response) => {
-//   if (!request.token) {
-//     return response.status(401).json({ error: 'token missing' })
-//   }
-
-//   const blog = await Blog.findById(request.params.id)
-//   if (!blog) {
-//     return response.status(404).json({ error: 'blog not found' })
-//   }
-
-//   if (!blog.user || blog.user.toString() !== request.user) {
-//     console.log(blog.user, blog.user.toString(), request.user)
-//     return response.status(403).json({ error: 'forbidden' })
-//   }
-
-//   await Blog.findByIdAndDelete(request.params.id)
-//   response.status(204).end()
-// })
-
-// blogsRouter.put('/:id', async (request, response) => {
-//   const blogToUpdate = await Blog.findById(request.params.id)
-//   if (!blogToUpdate) {
-//     response.status(404).end()
-//   }
-
-//   const { title, author, url, likes, user } = request.body
-
-//   if (title) { blogToUpdate.title = title }
-//   if (author) { blogToUpdate.author = author }
-//   if (url) { blogToUpdate.url = url }
-//   if (likes) { blogToUpdate.likes = likes }
-//   if (user) {  blogToUpdate.user = user }
-//   const updatedBlog = await blogToUpdate.save()
-//   const blog = await Blog.findById(updatedBlog.id).populate('user',{ username :1, name:1 })
-//   response.status(200).json(blog)
-// })
 
 module.exports = artistsRouter

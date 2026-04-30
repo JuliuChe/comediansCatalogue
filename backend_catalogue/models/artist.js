@@ -14,7 +14,7 @@ const artistSchema = mongoose.Schema({
     trim: true
   },
   dateOfBirth: Date,
-  user: {
+  createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref:'User'
   }
@@ -27,6 +27,8 @@ artistSchema.set('toJSON', {
     delete returnedObject.__v
   }
 })
+
+artistSchema.index({ lastName: 1, firstName: 1, _id: 1 })
 
 const Artist =  mongoose.model('Artist', artistSchema)
 

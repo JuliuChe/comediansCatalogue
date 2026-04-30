@@ -32,6 +32,31 @@ const userExtractor = (request, response, next) => {
   next()
 }
 
+const paginationMiddleware = ({ maxLimit = 200, defaultLimit = 50 } = {}) => {
+  return (req, res, next) => {
+    // Validation de limit
+    let limit
+    if (req.query.limit !== undefined) {
+      limit = parseInt(req.query.limit, 10)
+      if (Number.isNaN(limit) || limit < 1) {
+        return res.status(400).json({ error: 'Invalid limit' })
+      }
+      limit = Math.min(limit, maxLimit)
+    } else {
+      limit = defaultLimit
+    }
+
+    // Validation du cursor
+    const cursor = req.query.cursor
+    if (cursor !== undefined && (typeof cursor !== 'string' || cursor.length > 500)) {
+      return res.status(400).json({ error: 'Invalid cursor' })
+    }
+
+    req.pagination = { limit, cursor: cursor || null }
+    next()
+  }
+}
+
 const unknownEndpoint = (request, response) => {
   response.status(404).send({ error: 'unknown endpoint' })
 }
@@ -57,5 +82,6 @@ module.exports = {
   errorHandler,
   requestLogger,
   tokenExtractor,
-  userExtractor
+  userExtractor,
+  paginationMiddleware
 }

@@ -6,29 +6,30 @@ const playSchema = mongoose.Schema({
   title: String,
   scriptEditor:String,
   author: String,
-  likes:Number,
+  theater: { type: mongoose.Schema.Types.ObjectId, ref: 'Theater' },
   director:    {
       type: mongoose.Schema.Types.ObjectId,
       ref:'Artist' //The ref field specifies the name of the model being referenced
     },
-  url:String,
-  theater: { type: mongoose.Schema.Types.ObjectId, ref: 'Theater' },
-  startDate: Date,
-  endDate:Date,
   artists: [{
     artist: { type: mongoose.Schema.Types.ObjectId, ref:'Artist' }, //The ref field specifies the name of the model being referenced
-    role: {
-      type:String,
-      enum: ['comedien', 'metteur_en_scene'],
-      required:true
-    },
     personnage:String
   }],
-  user: {
+  startDate: {
+    type: Date,
+    required: true
+  },
+  endDate:Date,
+  url:String,
+  likes:Number,
+  createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref:'User'
   }
 })
+
+playSchema.index({ director: 1 })
+playSchema.index({ 'artists.artist': 1 })
 
 playSchema.set('toJSON', {
   transform: (document, returnedObject) => {
@@ -37,6 +38,8 @@ playSchema.set('toJSON', {
     delete returnedObject.__v
   }
 })
+
+playSchema.index({ startDate: -1, _id: -1 })
 
 const Play =  mongoose.model('Play', playSchema)
 

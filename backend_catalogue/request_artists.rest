@@ -1,0 +1,17 @@
+# Login
+POST http://localhost:3001/api/login HTTP/1.1
+content-type: application/json
+
+{
+  "username": "jcheval",
+  "name": "Julien Chevalley",
+  "password": "sekret"
+}
+  -H "Content-Type: application/json" \
+  -d '{"username":"votre_user","password":"votre_pass"}'
+
+# Création
+curl -X POST http://localhost:3001/api/artists \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer VOTRE_TOKEN" \
+  -d '{"firstName":"Sarah","lastName":"Bernhardt","biography":"Actrice française"}'

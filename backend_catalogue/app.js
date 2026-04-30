@@ -26,7 +26,7 @@ app.use(express.json())
 app.use(middleware.requestLogger)
 app.use(middleware.tokenExtractor)
 
-app.use('/api/pieces', middleware.userExtractor, playsRouter)
+app.use('/api/plays', middleware.userExtractor, playsRouter)
 app.use('/api/artists', middleware.userExtractor, artistsRouter)
 // app.use('/api/theatres', middleware.userExtractor, theatresRouter)
 
