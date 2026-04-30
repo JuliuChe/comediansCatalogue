@@ -12,4 +12,4 @@ const findPlaysByArtistId = async (artistId) => {
     .sort({startDate:-1})
 }
 
-module.export = findPlaysByArtistId
+module.exports = findPlaysByArtistId

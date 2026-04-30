@@ -60,7 +60,7 @@ artistsRouter.get('/me', async (request, response) => {
   if (!userId) return response.status(401).json({error:'token invalid'})
   
   const user = await User.findById(userId)
-  if (!user) return response.status(400).json({error:'user does not exist'})
+  if (!user) return response.status(404).json({error:'user does not exist'})
   
   if(!user.artistProfile) return response.status(204).end()
 
