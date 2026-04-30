@@ -6,21 +6,20 @@ const { paginationMiddleware } = require('../utils/middleware')
 const artistsRouter = require('express').Router()
 const Play = require('../models/play')
 const Artist = require('../models/artist')
-
+const User = require('../models/user')
+const findPlaysByArtistId = require('../services/plays')
 
 
 artistsRouter.get('/', paginationMiddleware({maxLimit:100}), 
   async (request, response, next) => {
-    try {
-      const result = await paginate(Artist, 
-        {
-          populate:{path:'createdBy', select:'username'},
-          sort: {firstName:1, lastName:1},
-          ...request.pagination})
-      response.json(result)
-    } catch(err){
-      next(err)
-    }
+
+    const result = await paginate(Artist, 
+      {
+        populate:{path:'createdBy', select:'username'},
+        sort: {firstName:1, lastName:1},
+        ...request.pagination})
+    response.json(result)
+
   })
 
 artistsRouter.get('/search', async (request, response) => {
@@ -56,17 +55,27 @@ artistsRouter.get('/search', async (request, response) => {
     return response.json(sorted)
 })
 
-artistsRouter.get('/:id/plays', async (request, response) =>{
-  const plays = await Play.find({
-    $or:[      
-      {director:request.params.id},
-      {'artists.artist':request.params.id}
-    ]
-  })
-    .populate('theater', 'name city')
-    .sort({startDate:-1})
+artistsRouter.get('/me', async (request, response) => {
+  const userId= request.user
+  if (!userId) return response.status(401).json({error:'token invalid'})
+  
+  const user = await User.findById(userId)
+  if (!user) return response.status(400).json({error:'user does not exist'})
+  
+  if(!user.artistProfile) return response.status(204).end()
 
-    response.json(plays)
+  const userPlays = await findPlaysByArtistId(user.artistProfile)
+
+  const artist = await Artist.findById(user.artistProfile)
+
+  response.json({artist, userPlays})
+
+})
+
+artistsRouter.get('/:id/plays', async (request, response) =>{
+  const plays = await findPlaysByArtistId(request.params.id)
+  
+  response.json(plays)
 })
 
 artistsRouter.post('/', async (request, response) =>{

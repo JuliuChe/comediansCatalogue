@@ -10,7 +10,6 @@ const { paginationMiddleware } = require('../utils/middleware')
 
 playsRouter.get('/', paginationMiddleware({maxLimit:100}), 
   async (request, response, next) => {
-    try{
       const result = await paginate(Play, 
         {
           populate:[
@@ -24,10 +23,6 @@ playsRouter.get('/', paginationMiddleware({maxLimit:100}),
         })
         response.json(result)
 
-    } catch(err)
-    {
-      next(err)
-    }
   }
 )
 

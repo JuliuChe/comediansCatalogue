@@ -96,7 +96,7 @@ const paginate = async (model, {
   return {
     data,
     pagination: {
-      next_cursor: next_cursor,
+      next_cursor: nextCursor,
       has_more: hasMore,
       limit,
     },
