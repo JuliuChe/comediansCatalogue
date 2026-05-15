@@ -1,6 +1,6 @@
-const { findSimilarArtists, similarity, normalizeFields } = require('../utils/stringMatching')
+const { findSimilarArtists, similarity, normalizeFields, normalize } = require('../utils/stringMatching')
 const { escapeRegex } = require('../utils/escapeRegex')
-const { paginate } = require('../utils/paginate')
+const  paginate = require('../utils/paginate')
 const { paginationMiddleware } = require('../utils/middleware')
 
 const artistsRouter = require('express').Router()
@@ -29,7 +29,9 @@ artistsRouter.get('/search', async (request, response) => {
     return response.json([])
   }
 
-  const safeQuery = escapeRegex(query)
+  console.log(query)
+
+  const safeQuery = await escapeRegex(query)
   const regex = new RegExp(`^${safeQuery}`, 'i') // 'i' = insensible à la casse
 
   const artists = await Artist
@@ -78,11 +80,21 @@ artistsRouter.get('/:id/plays', async (request, response) =>{
   response.json(plays)
 })
 
-artistsRouter.post('/', async (request, response) =>{
-  const user = request.user
-  if(!user) return response.status(401).json({error: 'token invalid'})
+artistsRouter.get('/:id', async (request, response) =>{
+  const artist = await Artist.findById(request.params.id)
+  
+  response.json(artist)
+})
 
-  const { firstName, lastName, dateOfBirth, forceCreate } = normalizeFields(request.body, ['firstName', 'lastName'])
+artistsRouter.post('/', async (request, response) =>{
+  const userId = request.user
+  if(!userId) return response.status(401).json({error: 'token invalid'})
+  
+  const user = User.findById(userId)
+  if (!user) return response.status(404).json({error:'user does not exist'})
+  
+  // const { firstName, lastName, dateOfBirth, forceCreate } = normalizeFields(request.body, ['firstName', 'lastName'])
+  const { firstName, lastName, dateOfBirth, forceCreate } = request.body
 
   if (!firstName || !lastName) {
     return response.status(400).json({ 
@@ -91,7 +103,7 @@ artistsRouter.post('/', async (request, response) =>{
   }
 
   if (!forceCreate) {
-    const similar = await findSimilarArtists(Artist, firstName, lastName)
+    const similar = await findSimilarArtists(Artist, normalize(firstName), normalize(lastName))
     //TODO do not check for doublons here. 
     // If a post request is issued, there should not be a doublons (pre-check)
     if (similar.length > 0) {
@@ -102,15 +114,17 @@ artistsRouter.post('/', async (request, response) =>{
       })
     }
   }
+ 
   const artist = new Artist({
     firstName,
     lastName,
     dateOfBirth,
-    createdBy:user._id
+    createdBy:userId
   })
 
   const savedArtist = await artist.save()
   response.status(201).json(savedArtist)
 })
+
 
 module.exports = artistsRouter

@@ -1,0 +1,50 @@
+@baseUrl = http://localhost:3004/api
+
+###
+
+# @name login
+POST {{baseUrl}}/login/ HTTP/1.1
+content-type: application/json
+
+{
+  "username": "zozo",
+  "password": "test_pw"
+}
+
+###
+
+# @name createPlay
+POST {{baseUrl}}/plays/ HTTP/1.1
+content-type:application/json
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "title":"L'heure du thé",
+  "scriptEditor":"Coucou roukou",
+  "author": "Bernard Panard",
+  "director": "69f82e375219d8d08fd0769e",
+  "artists": [
+    {"artist": "69fdae574d638fc449e17ec5"}, 
+    {"artist": "69fdada34d638fc449e17ec4"},
+    {"artist": "69f82ebf5219d8d08fd076a0"},
+    {"artist":"69f830f2c753cfbe98468916"}
+  ],
+  "startDate": "2026-01-05",
+  "endDate":"2026-02-04",
+  "url":"https://la-compagnie-des-vomitos.ch"
+}
+
+###
+
+# @name getAll
+GET {{baseUrl}}/plays?limit=5 HTTP/1.1
+content-type:application/json
+
+
+
+###
+
+# @name getByArtistName
+GET {{baseUrl}}/plays/by-artist-name?firstName=Arthur&lastName=Ducul HTTP/1.1
+content-type:application/json
+

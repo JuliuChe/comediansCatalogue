@@ -9,6 +9,8 @@ const findPlaysByArtistId = async (artistId) => {
     ]
   })
     .populate('theater', 'name city')
+    .populate('artists.artist', 'firstName lastName')
+    .populate('director', 'firstName lastName')
     .sort({startDate:-1})
 }
 

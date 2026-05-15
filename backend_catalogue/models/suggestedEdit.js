@@ -20,17 +20,16 @@ const suggestedEditSchema = mongoose.Schema({
   reason:String,
   status: {
     type : String,
-    enum:['pending', 'acccepted', 'rejected', 'withdrawn'],
+    enum:['pending', 'accepted', 'rejected', 'withdrawn'],
     default:'pending'
   },
   reviewedBy:{
       type: mongoose.Schema.Types.ObjectId,
       ref:'User'
     },
-  reviewedAt:Date,
-  },{
-  timestamps: true  // ajoute createdAt et updatedAt automatiquement
-})
+  reviewedAt:Date},
+  {timestamps: true}  // ajoute createdAt et updatedAt automatiquement
+)
 
 
 suggestedEditSchema.index({ play: 1, status: 1 })

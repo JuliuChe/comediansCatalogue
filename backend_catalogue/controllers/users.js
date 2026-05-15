@@ -1,6 +1,8 @@
 const bcrypt = require('bcrypt')
 const usersRouter = require('express').Router()
 const User = require('../models/user')
+const Artist = require('../models/artist')
+
 
 usersRouter.post('/', async (request, response) => {
   const { username, firstName, lastName, email, password } = request.body
@@ -23,42 +25,28 @@ usersRouter.post('/', async (request, response) => {
   response.status(201).json(savedUser)
 })
 
-usersRouter.get('/me', async (request, response) => {  
-  const users = await User
-    .find({})
-    .populate(
-      {path:'artist',
-      select:'firstName lastName plays',
-      populate: {
-        path:'plays',
-        select:'title author startDate endDate theater',
-        populate: {
-          path:'theater',
-          select:'name'
-        }
-      }
-    })
+usersRouter.patch('/me', async (request, response) => {
+  const userId= request.user
+  if (!userId) return response.status(401).json({error:'token invalid'})
+  
+  const user = await User.findById(userId)
+  if (!user) return response.status(404).json({error:'user does not exist'})
 
-  response.status(200).json(users)
-})
+  const {artistId, username, firstName, lastName, email} = request.body
+  if (artistId !== undefined) {
+    const artist = await Artist.findById(artistId)
+    if(!artist) return response.status(404).json({error:'artist id does not exist'})
+    user.artistProfile = artistId
+  }
+  if (username !== undefined) user.username = username
+  if (firstName !== undefined) user.firstName = firstName
+  if (lastName !== undefined) user.lastName = lastName
+  if (email !== undefined) user.email = email
 
-usersRouter.get('/me/plays', async (request, response) => {  
-  const users = await User
-    .find({})
-    .populate(
-      {path:'artist',
-      select:'firstName lastName plays',
-      populate: {
-        path:'plays',
-        select:'title author startDate endDate theater',
-        populate: {
-          path:'theater',
-          select:'name'
-        }
-      }
-    })
+  const updatedUser = await user.save()
 
-  response.status(200).json(users)
+  response.json(updatedUser)
+  
 })
 
 module.exports = usersRouter

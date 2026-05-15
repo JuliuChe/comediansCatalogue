@@ -11,7 +11,9 @@ const requestLogger = (request, response, next) => {
 }
 
 const tokenExtractor = (request, response, next) => {
+  
   const authorization=request.get('authorization')
+  console.log(authorization)
   if (authorization && authorization.startsWith('Bearer ')){
     request.token = authorization.replace('Bearer ','')
   }
@@ -23,6 +25,7 @@ const userExtractor = (request, response, next) => {
     const decodedToken = jwt.verify(request.token, process.env.SECRET)
 
     if(!decodedToken.id){
+      console.log(decodedToken)
       return response.status(401).json({ error:'token invalid' })
     }
 

@@ -20,7 +20,7 @@ const similarity = (str1, str2) => {
   return 1 - (distance(n1, n2) / maxLength)
 }
 
-const findSimilarArtists = async (Artist, firstName, lastName, threshold = 0.85) => {
+const findSimilarArtists = async (Artist, firstName, lastName, threshold = 0.5) => {
   // Pour la perf : on récupère d'abord les candidats avec une lettre commune
   // Sinon, on serait obligé de scanner toute la collection
   const firstLetter = (firstName[0] || '').toLowerCase()
@@ -33,7 +33,7 @@ const findSimilarArtists = async (Artist, firstName, lastName, threshold = 0.85)
   const similar = candidates.filter(artist => {
     const firstSim = similarity(artist.firstName, firstName)
     const lastSim = similarity(artist.lastName, lastName)
-    
+    // console.log(`${artist.firstName}: ${firstSim}; ${artist.lastName}: ${lastSim}`)
     // Les deux noms doivent être similaires
     return firstSim >= threshold && lastSim >= threshold
   })
@@ -47,5 +47,5 @@ function normalizeFields(obj, fields) {
   );
 }
 
-module.exports = { normalizeFields, similarity, findSimilarArtists }
+module.exports = { normalizeFields, similarity, findSimilarArtists, normalize }
 

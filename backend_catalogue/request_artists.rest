@@ -1,17 +1,95 @@
-# Login
-POST http://localhost:3001/api/login HTTP/1.1
+@baseUrl = http://localhost:3004/api
+
+###
+# @name createUser
+POST {{baseUrl}}/users/ HTTP/1.1
 content-type: application/json
 
 {
-  "username": "jcheval",
-  "name": "Julien Chevalley",
-  "password": "sekret"
+  "username":"bob_down",
+  "firstName":"Robert",
+  "lastName":"Downey",
+  "email":"r.downey@gmail.com",
+  "password":"test_pw"
 }
-  -H "Content-Type: application/json" \
-  -d '{"username":"votre_user","password":"votre_pass"}'
 
-# Création
-curl -X POST http://localhost:3001/api/artists \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer VOTRE_TOKEN" \
-  -d '{"firstName":"Sarah","lastName":"Bernhardt","biography":"Actrice française"}'
+
+###
+
+# @name login
+POST {{baseUrl}}/login/ HTTP/1.1
+content-type: application/json
+
+{
+  "username": "zozo",
+  "password": "test_pw"
+}
+
+### 
+
+# @name newArtist
+POST {{baseUrl}}/artists/ HTTP/1.1
+content-type:application/json
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "firstName":"Marcel",
+  "lastName":"Duboeuf",
+  "dateOfBirth": "2005-01-15"
+}
+
+### 
+
+# @name getAll
+GET {{baseUrl}}/artists?limit=5 HTTP/1.1
+content-type:application/json
+
+###
+
+# @name getAllPage2
+GET {{baseUrl}}/artists?limit=5&cursor=eyJmaXJzdE5hbWUiOiJPcGjDqWxpZSIsImxhc3ROYW1lIjoiSm9iaW4iLCJfaWQiOiI2OWY4MzQ0MzYxN2Y3ZGNhMzM3MTMzMmQifQ HTTP/1.1
+content-type:application/json
+
+###
+
+# @name getArtistBySearch
+GET {{baseUrl}}/artists/search?q=fran
+content-type:application/json
+
+### 
+
+# @name getArtistMe
+GET {{baseUrl}}/artists/me HTTP/1.1
+content-type:application/json
+Authorization: Bearer {{login.response.body.token}}
+
+###
+
+# @name getPlaysByArtistId
+GET {{baseUrl}}/artists/69f3ca276aa1c9c2698e6d85/plays
+content-type:application/json
+
+###
+
+# @name getArtistById
+GET {{baseUrl}}/artists/69f3ca276aa1c9c2698e6d85 HTTP/1.1
+content-type:application/json
+
+###
+
+# @name linkArtistUser
+PATCH {{baseUrl}}/users/me HTTP/1.1
+content-type:application/json
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "artistId":"69f82e375219d8d08fd0769e",
+  "username":"zozo",
+  "firstName": "L'asticot",
+  "lastName": "Toumou",
+  "email":"zozolasticot@gmail.com"
+}
+
+###
+
+

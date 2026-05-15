@@ -21,6 +21,10 @@ mongoose
     logger.error('error connection to MongoDB:', error.message)
   })
 
+mongoose.connection.on('disconnected', () => logger.error('MongoDB disconnected'))
+mongoose.connection.on('reconnected', () => logger.info('MongoDB reconnected'))
+mongoose.connection.on('error', (err) => logger.error('MongoDB error:', err.message))
+
 app.use(express.json())
 
 app.use(middleware.requestLogger)
@@ -30,7 +34,7 @@ app.use('/api/plays', middleware.userExtractor, playsRouter)
 app.use('/api/artists', middleware.userExtractor, artistsRouter)
 // app.use('/api/theatres', middleware.userExtractor, theatresRouter)
 
-app.use('/api/users', usersRouter)
+app.use('/api/users', middleware.userExtractor, usersRouter)
 app.use('/api/login', loginRouter)
 
 if (process.env.NODE_ENV === 'test') {

@@ -3,13 +3,17 @@ const Play = require('../models/play')
 const User = require('../models/user')
 const Artist = require('../models/artist')
 const Theater = require('../models/theater')
-
-const { findSimilarArtists, similarity, normalizeFields } = require('../utils/stringMatching')
-const { paginate } = require('../utils/paginate')
+const paginate = require('../utils/paginate')
 const { paginationMiddleware } = require('../utils/middleware')
+const notificationCastChanges = require('../services/notifications')
 
 playsRouter.get('/', paginationMiddleware({maxLimit:100}), 
   async (request, response, next) => {
+      const when = request.query.when || 'upcoming'
+      if(!['upcoming', 'past'].includes(when)){
+        return response.status(400).json({ error: 'invalid `when` parameter' })
+      }
+      const now = new Date()
       const result = await paginate(Play, 
         {
           populate:[
@@ -18,40 +22,21 @@ playsRouter.get('/', paginationMiddleware({maxLimit:100}),
             {path:'theater', select:'name address.city'},
             {path:'artists.artist', select:'firstName lastName'}
           ],
-          sort: {startDate: -1},
+          filter: when ==='upcoming' ?  { $or: [
+            {endDate: { $gte: now}}, 
+            {endDate:null, startDate : {$gte:now}}
+          ]}
+          : { $or:[
+            {endDate: {$lt: now}}, 
+            {endDate:null, startDate : {$lt:now}}
+          ]},
+          sort: when=='upcoming' ? {startDate: 1} : {startDate: -1},
           ...request.pagination
         })
         response.json(result)
 
   }
 )
-
-playsRouter.get('/by-artist-name', async (request, response) =>{
-  const firstName = request.query.firstName || ''
-  const lastName = request.query.lastName || ''
-
-  if (!firstName.trim() || !lastName.trim()) {
-    return response.status(400).json({ 
-      error: 'firstName and lastName are required' 
-    })
-  }
-
-  const similarArtists = await findSimilarArtists(Artist, firstName, lastName)
-  const similatArtistsIds = similarArtists.map(a => a._id)
-
-  const plays = await Play.find({
-    $or:[
-      {director: {$in: similarArtistsIds}},
-      {'artists.artist': {$in : similarArtistsIds}}
-    ]
-  })
-    .populate('theater', 'name city')
-    .populate('director', 'firstName lastName')
-    .populate('artists.artist', 'firstName lastName')
-    .sort({ startDate: -1 })
-
-    response.json(plays)
-})
 
 playsRouter.get('/:id', async (request, response) => {
   const id = request.params.id
@@ -61,7 +46,7 @@ playsRouter.get('/:id', async (request, response) => {
     .populate('theater', { name: 1, 'address.city':1 })
     .populate('artists.artist', { firstName: 1, lastName: 1 })
   
-  if(!play) return response.status(404).end()
+  if(!plays) return response.status(404).end()
   
   response.json(plays)
 })
@@ -70,10 +55,10 @@ playsRouter.get('/:id', async (request, response) => {
 
 playsRouter.post('/', async (request, response) => {
   const userId= request.user
-  if (!userId) return response.status(400).json({error:'token invalid'})
+  if (!userId) return response.status(401).json({error:'token invalid'})
   
   const user = await User.findById(userId)
-  if (!user) return response.status(401).json({error:'user does not exist'})
+  if (!user) return response.status(404).json({error:'user does not exist'})
 
   const {
     title, 
@@ -100,7 +85,7 @@ playsRouter.post('/', async (request, response) => {
   if(artists && artists.length>0){
     const artistsIds = artists.map(a => a.artist)
     const artistsInDb = await Artist.find({
-      _id : {$in : artistIds}
+      _id : {$in : artistsIds}
     }, '_id')
     if (artistsInDb.length !== artistsIds.length) {
       return response.status(400).json({ 
@@ -124,7 +109,7 @@ playsRouter.post('/', async (request, response) => {
   })
 
   const savedPlay = await play.save()
-
+  await notifyCastChanges(null, savedPlay)  
   await savedPlay .populate('director', { firstName: 1, lastName: 1 })
   await savedPlay .populate('theater', { name: 1, 'address.city':1 })
   await savedPlay .populate('artists.artist', { firstName: 1, lastName: 1 })
@@ -227,10 +212,11 @@ playsRouter.put('/:id', async (request, response) => {
   if( likes !== undefined) play.likes = likes
 
   const updatedPlay = await play.save()
+  await notifyCastChanges(play, updatedPlay)  
 
-  await updatedPlay .populate('director', { firstName: 1, lastName: 1 })
-  await updatedPlay .populate('theater', { name: 1, 'address.city':1 })
-  await updatedPlay .populate('artists.artist', { firstName: 1, lastName: 1 })
+  await updatedPlay.populate('director', { firstName: 1, lastName: 1 })
+  await updatedPlay.populate('theater', { name: 1, 'address.city':1 })
+  await updatedPlay.populate('artists.artist', { firstName: 1, lastName: 1 })
 
   response.json(updatedPlay)
 })
