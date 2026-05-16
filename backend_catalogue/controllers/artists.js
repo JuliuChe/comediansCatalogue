@@ -7,7 +7,7 @@ const artistsRouter = require('express').Router()
 const Play = require('../models/play')
 const Artist = require('../models/artist')
 const User = require('../models/user')
-const findPlaysByArtistId = require('../services/plays')
+const findPlaysByArtistId = require('../services/artists')
 
 
 artistsRouter.get('/', paginationMiddleware({maxLimit:100}), 

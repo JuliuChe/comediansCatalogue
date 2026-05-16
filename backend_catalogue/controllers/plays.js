@@ -5,7 +5,7 @@ const Artist = require('../models/artist')
 const Theater = require('../models/theater')
 const paginate = require('../utils/paginate')
 const { paginationMiddleware } = require('../utils/middleware')
-const notificationCastChanges = require('../services/notifications')
+const notifyCastChanges = require('../services/notifications')
 
 playsRouter.get('/', paginationMiddleware({maxLimit:100}), 
   async (request, response, next) => {
@@ -161,6 +161,11 @@ playsRouter.put('/:id', async (request, response) => {
     })
   }
 
+const oldSnapshot = {
+  artists: play.artists.map(a => ({ artist: a.artist, personnage: a.personnage })),
+  director: play.director
+  }
+
   const {
     title,
     author,
@@ -212,7 +217,7 @@ playsRouter.put('/:id', async (request, response) => {
   if( likes !== undefined) play.likes = likes
 
   const updatedPlay = await play.save()
-  await notifyCastChanges(play, updatedPlay)  
+  await notifyCastChanges(oldSnapshot, play)  
 
   await updatedPlay.populate('director', { firstName: 1, lastName: 1 })
   await updatedPlay.populate('theater', { name: 1, 'address.city':1 })

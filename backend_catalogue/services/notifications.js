@@ -1,13 +1,36 @@
-const Play = require('../models/play')
+const Notification = require('../models/notification')
+const User = require('../models/user')
 
-const notificationCastChanges = async (oldPlay, newPlay) => {
-  const oldArtistsList = oldPlay.artists
-  const newArtistsList = newPlay.artists
-  const artistsToAdd = newArtistsList.filter( (artist) => { if(!oldArtistsList.includes(artist)) return artist })
-  const artistsToRemove = oldArtistsList.filter( (artist) => { if(!newArtistsList.includes(artist)) return artist })
-  if (oldPlay.director !== newPlay.director){
-    //Notify new director has been added
-  }    
+const notifyCastChanges = async (oldPlay, newPlay) => {
+  const newArtistsIds = newPlay.artists.map( a => a.artist.toString())
+  const oldArtistsIds=oldPlay ? oldPlay.artists.map( a => a.artist.toString()):[]
+  const addedCastsIds = newArtistsIds.filter( (artist) => !oldArtistsIds.includes(artist))
+
+  const newDirectorId = newPlay.director?.toString() ?? null
+  const oldDirectorId = oldPlay?.director?.toString() ?? null
+  const addedDirectorId = (newDirectorId && newDirectorId !== oldDirectorId) 
+    ? newDirectorId 
+    : null
+  
+  const artistsToAdd = [...addedCastsIds, ...(addedDirectorId ? [addedDirectorId] : []) ]
+  if (artistsToAdd.length === 0) return
+
+  const usersToNotify = await User.find({artistProfile:{$in:artistsToAdd}},'_id artistProfile')
+  for (const user of usersToNotify){
+    try{
+      const role = user.artistProfile.toString() === addedDirectorId ? 'director' : 'cast'
+      await Notification.create ({
+        recipient: user._id, 
+        type: 'cast_added', 
+        play: newPlay._id, 
+        artist: user.artistProfile, 
+        role: role
+      })
+    } catch (err) {
+       if (err.code !== 11000) throw err   // duplicate key → idempotence, on ignore
+    }
+  }
+
 }
 
-module.exports = notificationCastChanges
+module.exports = notifyCastChanges
