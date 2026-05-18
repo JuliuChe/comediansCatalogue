@@ -1,4 +1,4 @@
-const playsRouter = require('express').Router()
+const theatersRouter = require('express').Router()
 const Play = require('../models/play')
 const User = require('../models/user')
 const Artist = require('../models/artist')
@@ -6,51 +6,85 @@ const Theater = require('../models/theater')
 const paginate = require('../utils/paginate')
 const { paginationMiddleware } = require('../utils/middleware')
 
-playsRouter.get('/', paginationMiddleware({maxLimit:100}), 
+theatersRouter.get('/', paginationMiddleware({maxLimit:100}), 
   async (request, response, next) => {
-      const when = request.query.when || 'upcoming'
-      if(!['upcoming', 'past'].includes(when)){
-        return response.status(400).json({ error: 'invalid `when` parameter' })
-      }
-      const now = new Date()
-      const result = await paginate(Play, 
-        {
-          populate:[
-            {path:'createdBy', select:'username firstName lastName'},
-            {path:'director', select:'firstName lastName'},
-            {path:'theater', select:'name address.city'},
-            {path:'artists.artist', select:'firstName lastName'}
-          ],
-          filter: when ==='upcoming' ?  { $or: [
-            {endDate: { $gte: now}}, 
-            {endDate:null, startDate : {$gte:now}}
-          ]}
-          : { $or:[
-            {endDate: {$lt: now}}, 
-            {endDate:null, startDate : {$lt:now}}
-          ]},
-          sort: when=='upcoming' ? {startDate: 1} : {startDate: -1},
-          ...request.pagination
-        })
-        response.json(result)
 
+    const result = await paginate(Theater, {
+      populate:[
+        {path:createdBy, select:'username firstName lastName'}
+      ], 
+      sort: {name: 1},
+      ...request.pagination
+    })
+
+    response.json(result)
+    const when = request.query.when || 'upcoming'
+    if(!['upcoming', 'past'].includes(when)){
+      return response.status(400).json({ error: 'invalid `when` parameter' })
+    }
+  
+    response.json(result)
   }
 )
 
-playsRouter.get('/:id', async (request, response) => {
-  const id = request.params.id
-  const plays = await Play.findById(id)
-    .populate('createdBy', { username: 1, firstName: 1, lastName: 1 })
-    .populate('director', { firstName: 1, lastName: 1 })
-    .populate('theater', { name: 1, 'address.city':1 })
-    .populate('artists.artist', { firstName: 1, lastName: 1 })
-  
-  if(!plays) return response.status(404).end()
-  
-  response.json(plays)
+theatersRouter.get('/search', async (request, response) =>{
+  const name = request.query.name || ''
+  const city = request.query.city || ''
+  if (!city){
+    const safeQuery = await escapeRegex(name)
+  const regex = new RegExp(`^${safeQuery}`, 'i') // 'i' = insensible à la casse
+
+  const artists = await Artist
+    .find({
+      $or: [{firstName:regex},{lastName:regex}]
+    })
+    .limit(10)
+    .select('firstName lastName')
+
+  const sorted = artists
+    .map(a => ({
+      artist: a,
+      score: Math.max(
+        similarity(a.firstName, query),
+        similarity(a.lastName, query),
+        similarity(`${a.firstName} ${a.lastName}`, query)
+      )
+    }))
+    .sort((a, b) => b.score - a.score)
+    .map(item => item.artist)
+  }
 })
 
+theatersRouter.get('/:id', async (request, response) => {
+  const id = request.params.id
+  const theater = await Theater.findById(id)
+    .populate('createdBy', { username: 1, firstName: 1, lastName: 1 })
 
+  
+  if(!theater) return response.status(404).end()
+  
+  response.json(theater)
+})
+
+theatersRouter.delete('/:id', async (request, response) => {
+  const userId= request.user
+  if (!userId) return response.status(400).json({error:'token invalid'})
+  
+  const user = await User.findById(userId)
+  if (!user) return response.status(401).json({error:'user does not exist'})
+
+  const theater = await Theater.findById(request.params.id)
+  if (!theater) return response.status(404).end()
+
+  if (theater.createdBy.toString() !== userId) {
+    return response.status(403).json({ 
+      error: 'only the creator can delete this theater' 
+    })
+  }
+
+  await Theater.findByIdAndDelete(request.params.id)
+  response.status(204).end()
+})
 
 playsRouter.post('/', async (request, response) => {
   const userId= request.user
@@ -119,25 +153,7 @@ playsRouter.post('/', async (request, response) => {
 })
 
 
-playsRouter.delete('/:id', async (request, response) => {
-  const userId= request.user
-  if (!userId) return response.status(400).json({error:'token invalid'})
-  
-  const user = await User.findById(userId)
-  if (!user) return response.status(401).json({error:'user does not exist'})
 
-  const play = await Play.findById(request.params.id)
-  if (!play) return response.status(404).end()
-
-  if (play.createdBy.toString() !== userId) {
-    return response.status(403).json({ 
-      error: 'only the creator can delete this play' 
-    })
-  }
-
-  await Play.findByIdAndDelete(request.params.id)
-  response.status(204).end()
-})
 
 
 

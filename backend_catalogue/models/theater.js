@@ -10,7 +10,12 @@ const theaterSchema = new mongoose.Schema({
     postalCode: String,
     country: String
   },
-  capacity: Number
+  capacity: Number,
+  createdBy:{
+      type: mongoose.Schema.Types.ObjectId,
+      ref:'User',
+      required:true
+    }
 })
 
 theaterSchema.set('toJSON', {

@@ -58,6 +58,14 @@ artistsRouter.get('/search', async (request, response) => {
     return response.json(sorted)
 })
 
+artistsRouter.get('/check-duplicates', async (request, response) => {
+  const typedFirstName = request.query.firstName || ''
+  const typedLastName = request.query.lastName || ''
+  const similar = await findSimilarArtists(Artist, normalize(typedFirstName), normalize(typedLastName))
+  
+  return response.json(similar)
+})
+
 artistsRouter.get('/me', async (request, response) => {
   const userId= request.user
   if (!userId) return response.status(401).json({error:'token invalid'})
