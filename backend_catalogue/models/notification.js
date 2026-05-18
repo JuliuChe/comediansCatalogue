@@ -44,7 +44,7 @@ notificationSchema.set('toJSON', {
 })
 
 notificationSchema.index({ recipient: 1, status: 1, createdAt: -1 })
-notificationSchema.index({ recipient: 1, play: 1, artist: 1 }, { unique: true })
+notificationSchema.index({ recipient: 1, play: 1, artist: 1, role: 1 }, { unique: true })
 
 const Notification =  mongoose.model('Notification', notificationSchema)
 

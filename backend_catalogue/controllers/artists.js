@@ -7,6 +7,7 @@ const artistsRouter = require('express').Router()
 const Play = require('../models/play')
 const Artist = require('../models/artist')
 const User = require('../models/user')
+const Notification = require('../models/notification')
 const findPlaysByArtistId = require('../services/artists')
 
 
@@ -76,8 +77,16 @@ artistsRouter.get('/me', async (request, response) => {
 
 artistsRouter.get('/:id/plays', async (request, response) =>{
   const plays = await findPlaysByArtistId(request.params.id)
+  const userOfArtist = await User.findOne({artistProfile:request.params.id})
+  if (!userOfArtist){
+    return response.json(plays)  
+  }
+
+  const acceptedNotifications = await Notification.find({recipient:userOfArtist._id, status:'accepted'})
+  const acceptedPlays = acceptedNotifications.map( (notif) => notif.play.toString())
+  const publicPlays = plays.filter((play) => acceptedPlays.includes(play._id.toString()) || play.createdBy === userOfArtist._id)
   
-  response.json(plays)
+  response.json(publicPlays)
 })
 
 artistsRouter.get('/:id', async (request, response) =>{

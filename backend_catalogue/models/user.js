@@ -7,8 +7,10 @@ const userSchema = mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref:'Artist', //The ref field specifies the name of the model being referenced
       default: null,
-      unique:true,
-      sparse:true
+      index: {
+        unique: true,
+        partialFilterExpression: { artistProfile: { $type: 'objectId' } }
+      }
   },
   username: {
     type: String,

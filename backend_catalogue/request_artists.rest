@@ -33,8 +33,8 @@ content-type:application/json
 Authorization: Bearer {{login.response.body.token}}
 
 {
-  "firstName":"Marcel",
-  "lastName":"Duboeuf",
+  "firstName":"Aristide",
+  "lastName":"Bruand",
   "dateOfBirth": "2005-01-15"
 }
 
@@ -66,13 +66,13 @@ Authorization: Bearer {{login.response.body.token}}
 ###
 
 # @name getPlaysByArtistId
-GET {{baseUrl}}/artists/69f3ca276aa1c9c2698e6d85/plays
+GET {{baseUrl}}/artists/69f82e375219d8d08fd0769e/plays
 content-type:application/json
 
 ###
 
 # @name getArtistById
-GET {{baseUrl}}/artists/69f3ca276aa1c9c2698e6d85 HTTP/1.1
+GET {{baseUrl}}/artists/69f82e375219d8d08fd0769e HTTP/1.1
 content-type:application/json
 
 ###

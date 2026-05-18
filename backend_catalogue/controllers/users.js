@@ -2,6 +2,7 @@ const bcrypt = require('bcrypt')
 const usersRouter = require('express').Router()
 const User = require('../models/user')
 const Artist = require('../models/artist')
+const { notifyExistingPlaysForArtist } = require('../services/notifications')
 
 
 usersRouter.post('/', async (request, response) => {
@@ -33,6 +34,10 @@ usersRouter.patch('/me', async (request, response) => {
   if (!user) return response.status(404).json({error:'user does not exist'})
 
   const {artistId, username, firstName, lastName, email} = request.body
+
+  // SNAPSHOT avant mutation
+  const oldArtistProfile = user.artistProfile
+
   if (artistId !== undefined) {
     const artist = await Artist.findById(artistId)
     if(!artist) return response.status(404).json({error:'artist id does not exist'})
@@ -44,6 +49,12 @@ usersRouter.patch('/me', async (request, response) => {
   if (email !== undefined) user.email = email
 
   const updatedUser = await user.save()
+
+  const oldId = oldArtistProfile?.toString() ?? null
+  const newId = user.artistProfile?.toString() ?? null
+  if (newId && newId !== oldId) {
+    await notifyExistingPlaysForArtist(user._id, user.artistProfile)
+  }
 
   response.json(updatedUser)
   

@@ -1,0 +1,33 @@
+@baseUrl = http://localhost:3004/api
+
+###
+
+# @name login
+POST {{baseUrl}}/login/ HTTP/1.1
+content-type: application/json
+
+{
+  "username": "jean_duj",
+  "password": "test_pw"
+}
+
+###
+
+# @name getNotificationForAUser
+GET {{baseUrl}}/notifications?status=pending
+content-type:application/json
+Authorization: Bearer {{login.response.body.token}}
+
+
+###
+
+# @name changeNotificationForAUser
+PATCH {{baseUrl}}/notifications/6a0a2301b325a0cd32882c68/
+content-type:application/json
+Authorization: Bearer {{login.response.body.token}}
+
+{
+  "status":"accepted"
+}
+
+###

@@ -19,19 +19,17 @@ content-type:application/json
 Authorization: Bearer {{login.response.body.token}}
 
 {
-  "title":"L'heure du thé",
+  "title":"J'ai mal aux mains",
   "scriptEditor":"Coucou roukou",
   "author": "Bernard Panard",
   "director": "69f82e375219d8d08fd0769e",
   "artists": [
     {"artist": "69fdae574d638fc449e17ec5"}, 
-    {"artist": "69fdada34d638fc449e17ec4"},
-    {"artist": "69f82ebf5219d8d08fd076a0"},
-    {"artist":"69f830f2c753cfbe98468916"}
+    {"artist": "69f82e375219d8d08fd0769e"}
   ],
-  "startDate": "2026-01-05",
-  "endDate":"2026-02-04",
-  "url":"https://la-compagnie-des-vomitos.ch"
+  "startDate": "2025-05-13",
+  "endDate":"2025-06-13",
+  "url":"https://la-compagnie-des-primitifs.ch"
 }
 
 ###
@@ -48,3 +46,27 @@ content-type:application/json
 GET {{baseUrl}}/plays/by-artist-name?firstName=Arthur&lastName=Ducul HTTP/1.1
 content-type:application/json
 
+
+###
+
+# @name getById
+GET {{baseUrl}}/plays/69fdaab04d638fc449e17ea2 HTTP/1.1
+content-type:application/json
+
+###
+
+# @name modifyArtistsInPlay
+PUT {{baseUrl}}/plays/69fdaab04d638fc449e17ea2 HTTP/1.1
+content-type:application/json
+Authorization: Bearer {{login.response.body.token}}
+
+{
+    "director" : "69f82e375219d8d08fd0769e",
+    "artists":[
+      {"artist":"69f82ebf5219d8d08fd076a0"},
+      {"artist":"69f3ca276aa1c9c2698e6d85"},
+      {"artist":"69fa5c359b465d321a202432"}, 
+      {"artist":"69f82e375219d8d08fd0769e"},
+      {"artist":"69f82da15219d8d08fd0769d"}
+      ]
+} 

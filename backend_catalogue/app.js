@@ -5,6 +5,7 @@ const artistsRouter = require('./controllers/artists')
 const playsRouter = require('./controllers/plays')
 const usersRouter = require('./controllers/users')
 const loginRouter = require('./controllers/login')
+const notificationsRouter = require('./controllers/notifications')
 const logger = require('./utils/logger')
 const middleware = require('./utils/middleware')
 
@@ -35,7 +36,9 @@ app.use('/api/artists', middleware.userExtractor, artistsRouter)
 // app.use('/api/theatres', middleware.userExtractor, theatresRouter)
 
 app.use('/api/users', middleware.userExtractor, usersRouter)
+app.use('/api/notifications',  middleware.userExtractor, notificationsRouter)
 app.use('/api/login', loginRouter)
+
 
 if (process.env.NODE_ENV === 'test') {
   const testingRouter = require('./controllers/testing')
