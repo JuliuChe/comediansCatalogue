@@ -82,9 +82,14 @@ artistsRouter.get('/:id/plays', async (request, response) =>{
     return response.json(plays)  
   }
 
-  const acceptedNotifications = await Notification.find({recipient:userOfArtist._id, status:'accepted'})
-  const acceptedPlays = acceptedNotifications.map( (notif) => notif.play.toString())
-  const publicPlays = plays.filter((play) => acceptedPlays.includes(play._id.toString()) || play.createdBy === userOfArtist._id)
+  const acceptedPlayIds = await Notification.distinct('play', {
+    recipient: userOfArtist._id,
+    status: 'accepted'
+  })
+  // → [ObjectId('aaa'), ObjectId('bbb')]  — tableau d'ObjectIds, pas de docs
+
+  const acceptedSet = new Set(acceptedPlayIds.map(String))
+  const publicPlays = plays.filter((play) => acceptedSet.has(play._id.toString()) )
   
   response.json(publicPlays)
 })

@@ -14,7 +14,7 @@ content-type: application/json
 ###
 
 # @name getNotificationForAUser
-GET {{baseUrl}}/notifications?status=pending
+GET {{baseUrl}}/notifications?status=accepted
 content-type:application/json
 Authorization: Bearer {{login.response.body.token}}
 
@@ -22,7 +22,7 @@ Authorization: Bearer {{login.response.body.token}}
 ###
 
 # @name changeNotificationForAUser
-PATCH {{baseUrl}}/notifications/6a0a2301b325a0cd32882c68/
+PATCH {{baseUrl}}/notifications/6a0a2733b325a0cd32882c7b/
 content-type:application/json
 Authorization: Bearer {{login.response.body.token}}
 

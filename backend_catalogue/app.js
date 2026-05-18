@@ -33,7 +33,7 @@ app.use(middleware.tokenExtractor)
 
 app.use('/api/plays', middleware.userExtractor, playsRouter)
 app.use('/api/artists', middleware.userExtractor, artistsRouter)
-// app.use('/api/theatres', middleware.userExtractor, theatresRouter)
+// app.use('/api/theaters', middleware.userExtractor, theatresRouter)
 
 app.use('/api/users', middleware.userExtractor, usersRouter)
 app.use('/api/notifications',  middleware.userExtractor, notificationsRouter)
