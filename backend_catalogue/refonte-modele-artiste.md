@@ -1,10 +1,16 @@
-# Refonte du modèle Artiste — Plan
+# Refonte du modèle Artiste — Plan (v2)
+
+> **Note** : ce plan a été pivoté après itération sur le design.
+> La version v1 (un Artist = une personne avec plusieurs noms) a été remplacée par la v2 (un Artist = une identité scénique atomique, un user peut en avoir plusieurs).
+> Voir l'historique git pour la v1.
 
 ## Contexte
 
-Le modèle actuel (`firstName` + `lastName` tous deux requis) ne tient pas pour :
+Le modèle initial (firstName + lastName tous deux requis) ne tenait pas pour :
 - les artistes connus uniquement par un nom de scène (« Raclor »)
-- les artistes qui ont plusieurs identités scéniques (Arnaud Mathey alias Raclor *et* Chouchou)
+- les artistes ayant plusieurs identités scéniques (Arnaud Mathey alias Raclor *et* Chouchou)
+
+Après itération autour d'un modèle « un Artist = une personne avec plusieurs noms », on bascule sur le modèle plus simple **« un Artist = une identité scénique »**. Chaque alias (nom civil, nom de scène) est un Artist distinct. Un User peut être lié à plusieurs Artists.
 
 Cette refonte vise un catalogue plus fidèle à la réalité de la scène culturelle, sans charge de maintenance post-launch sur la détection de doublons.
 
@@ -12,26 +18,42 @@ Cette refonte vise un catalogue plus fidèle à la réalité de la scène cultur
 
 ### Vision conceptuelle
 
-**Un artiste est une personne**, pas une identité scénique. Un seul document `Artist` peut porter plusieurs noms (nom civil + noms de scène).
+**Un Artist est une identité scénique atomique.** Chaque profil porte un nom unique. Une personne réelle peut être représentée par plusieurs Artists dans le catalogue.
 
-### Schéma cible
+Conséquences concrètes :
+- Arnaud Mathey est un Artist (`name: "Arnaud Mathey"`)
+- Raclor est un autre Artist (`name: "Raclor"`)
+- Chouchou est un troisième Artist (`name: "Chouchou"`)
+- Tous trois peuvent être liés au même User via `User.artistProfiles` (au pluriel)
+- Chaque profil a sa propre page, sa propre visibilité, son propre sort alphabétique
+
+### Schémas cibles
 
 **`models/artist.js`**
-- `firstName: String` — optionnel
-- `lastName: String` — optionnel
-- `stageNames: [String]` — tableau, possiblement vide
+- `name: String` — **requis**, le nom de cette identité, affiché tel quel
+- `sortableName: String` — dérivé via hook, indexé, alimenté par `normalize(name)`
+- `published: Boolean` — visibilité publique de ce profil, défaut `true`
+- `alsoKnownAs: [ObjectId ref Artist]` — liens optionnels vers les autres identités de la même personne (mutuel)
 - `dateOfBirth: Date` — inchangé
 - `createdBy: ObjectId ref User` — inchangé
-- **Validation custom** : au moins un de (`lastName`, `stageNames`) doit être présent. `firstName` seul n'identifie pas.
 
-**`models/play.js`** — sous-document `artists[]` enrichi
-- `artist: ObjectId ref Artist` — inchangé
-- `personnage: String` — inchangé (le rôle dans la pièce)
-- **`billedAs: String` (nouveau)** — le nom utilisé sur l'affiche pour cette pièce. Doit appartenir à la liste des noms de l'Artist référencé.
+**`models/user.js`**
+- `artistProfile` (singulier) → `artistProfiles: [ObjectId ref Artist]` (pluriel, tableau)
 
-### Pourquoi `billedAs` sur la Play et pas seulement sur l'Artist
+**`models/play.js`** — aucune modification structurelle
+- `artists[i] = { artist: ObjectId, personnage: String }` — inchangé
+- **Pas de `billedAs`** : le `ref` Artist EST le crédit. Si la pièce a été jouée en tant que Raclor, on pointe vers l'Artist Raclor.
 
-Quand Arnaud Mathey monte un spectacle en tant que Chouchou, c'est une proposition artistique différente d'un spectacle d'Arnaud Mathey. Effacer cette distinction dans le catalogue, c'est passer à côté de l'identité de la performance. La SEO bénéficie aussi de pages publiques qui affichent le nom de scène utilisé.
+### Pourquoi `billedAs` disparaît
+
+Dans la v1, on stockait sur la Play « quel nom de l'artiste était crédité ». Dans la v2 c'est implicite : on pointe directement vers l'Artist correspondant. Pas de duplication, pas de validation de cohérence à faire, pas de risque de désynchronisation.
+
+### Le lien entre alias (`alsoKnownAs`)
+
+- Pour les artistes-users : le lien existe naturellement via `User.artistProfiles`. `alsoKnownAs` peut être maintenu en parallèle pour faciliter les requêtes côté Artist.
+- Pour les artistes sans user account (la majorité au launch) : `alsoKnownAs` doit être renseigné explicitement par un curator/admin. Reste optionnel.
+
+L'utilité : pages profil (« cet artiste joue aussi sous : X, Y »), SEO (liens internes entre pages d'un même humain), navigation.
 
 ---
 
@@ -39,66 +61,76 @@ Quand Arnaud Mathey monte un spectacle en tant que Chouchou, c'est une propositi
 
 ### 1. Schémas
 
-- `models/artist.js` — restructurer firstName/lastName en optionnels, ajouter `stageNames`, valider la règle d'unicité de présence.
-- `models/play.js` — ajouter `billedAs` dans le sous-document `artists`.
+- `models/artist.js` — réécriture quasi complète. Plus de firstName/lastName/stageNames. Un seul `name` requis. Ajouter `sortableName`, `published`, `alsoKnownAs`.
+- `models/user.js` — renommer `artistProfile` → `artistProfiles`, passer au type `[ObjectId]`.
+- `models/play.js` — aucune modification.
 
-### 2. Utilitaires backend
+### 2. Hooks et validation Artist
+
+- Hook `pre('validate')` : assigne `sortableName = normalize(this.name)`. Plus de règle « au moins un de » à valider — Mongoose gère via `required: true` sur `name`.
+- Hook anti-update sur `findOneAnd*`, `update*`, `replace*` : force les writes à passer par `findById + .save()` pour que `pre('validate')` tourne et maintienne `sortableName` à jour.
+
+### 3. Utilitaires backend
 
 - `utils/stringMatching.js` — refonte de `findSimilarArtists` :
-  - la stratégie actuelle (filtrer par première lettre du firstName) ne tient plus.
-  - Stratégie possible : un champ dérivé `searchableNames` indexé (concaténation de firstName/lastName/stageNames normalisés), ou repenser le pré-filtre.
-  - Le bug pré-existant des accents (« Élise » vs « Elise ») est à régler dans la même passe.
+  - signature plus simple : prend un seul `name` au lieu de firstName/lastName.
+  - matching contre un seul champ.
+  - bug pré-existant des accents à régler dans la même passe.
 
-### 3. Controllers
+### 4. Controllers
 
 #### `controllers/artists.js`
-- `GET /` — stratégie de tri à revoir (l'index `{lastName:1, firstName:1}` n'est plus optimal quand beaucoup d'artistes n'ont pas de lastName).
-- `GET /search` — regex et fonction de score doivent inclure `stageNames`. À régler en même temps que le bug multi-tokens (« Yann m » qui ne retourne rien).
-- `GET /check-duplicates` — signature à élargir pour accepter `stageName` en plus de `firstName`/`lastName`.
-- `POST /` — accepter `stageNames` dans le body, valider la règle métier.
-- `GET /:id`, `GET /me`, `GET /:id/plays` — vérifier la cohérence des champs retournés.
+- `GET /` — sort par `{sortableName: 1, _id: 1}` (tiebreaker stable pour pagination).
+- `GET /search` — regex et fonction de score sur le `name` uniquement.
+- `GET /check-duplicates` — signature simplifiée à un seul paramètre `name`.
+- `POST /` — accepter `name` dans le body.
+- `GET /:id`, `GET /me`, `GET /:id/plays` — adapter aux nouveaux champs retournés.
+- Populates : ajuster pour inclure les champs pertinents du nouveau schéma (`name` au lieu de `firstName lastName`).
 
 #### `controllers/plays.js`
-- Tous les `.populate('artists.artist', ...)` et `.populate('director', ...)` doivent inclure `stageNames`.
-- `POST /` et `PATCH /:id` — validation du `billedAs` : doit appartenir à la liste des noms de l'Artist référencé.
+- Tous les `.populate('artists.artist', 'firstName lastName')` → `'name'` (ou `'name published'` selon besoins).
+- Idem pour `director` et `createdBy` (sur User, on garde firstName/lastName du user).
+- Pas de validation `billedAs` à faire — soulagement.
 
 #### `controllers/users.js`
-- `PATCH /` — le rattachement `user.artistProfile` reste similaire, mais à vérifier que l'objet Artist retourné est complet (firstName + lastName + stageNames).
+- `PATCH /` — gérer `artistProfiles` au pluriel. Logique add/remove sur le tableau plutôt qu'un set scalaire.
+- Audit de `notifyExistingPlaysForArtist` pour qu'il itère sur chaque `artistProfiles[]` si nécessaire.
 
-### 4. Service notifications
+### 5. Service notifications
 
-- `services/notifications.js` — auditer `notifyExistingPlaysForArtist` et `notifyCastChanges`. Si le texte des notifications affiche un nom d'artiste, utiliser `displayName` plutôt que firstName + lastName en dur.
+- `services/notifications.js` — auditer `notifyExistingPlaysForArtist` et `notifyCastChanges`. Mettre à jour pour la signature plurielle d'`artistProfiles` et le nouveau format d'Artist (un `name` au lieu de firstName+lastName).
 
-### 5. Index Mongo
+### 6. Index Mongo
 
-- `artistSchema.index({lastName: 1, firstName: 1, _id: 1})` à reconsidérer. Possiblement remplacer par un index sur un champ dérivé `sortableName` (= `lastName || stageNames[0]`).
+- Supprimer l'ancien index `{lastName: 1, firstName: 1, _id: 1}`.
+- Index composé `{sortableName: 1, _id: 1}` pour pagination stable du directory.
 
-### 6. Frontend
+### 7. Frontend
 
-- **Fonction `displayName(artist, options)`** centralisée. C'est la source de vérité pour tous les libellés. Selon le contexte :
-  - page artiste → nom complet avec alias entre parenthèses
-  - fiche de pièce → `billedAs`
-  - chip dans un picker → `billedAs` pour les pièces déjà créditées, sinon nom principal
+- **Fonction `displayName(artist)`** centralisée. Beaucoup plus simple en v2 : retourne `artist.name`. Tu peux la garder comme point d'extension futur (ex. ajouter « (alias de…) ») sans changer les appelants.
 - **Vues à mettre à jour** : `Play.jsx`, `PlayList.jsx`, `Notification.jsx`, tout endroit qui lit `artist.firstName + ' ' + artist.lastName`.
-- **Formulaires** : `PlayForm.jsx` (les comédiens), futur formulaire de création/édition d'artiste (3 champs avec validation).
-- **Picker** (composant à construire) : Autocomplete + chips, sur la base de MUI. Voir section dédiée plus bas.
+- **Formulaires** : `PlayForm.jsx` (les comédiens — un seul champ par crédit, puisque le picker pointe vers un Artist atomique), futur formulaire de création/édition d'artiste (champ `name`, éventuellement toggle `published`).
+- **Picker** : Autocomplete + chips sur la base de MUI. Chaque Artist est sa propre entrée — plus de débat Option A vs B, le modèle le fait gratuitement.
 
-### 7. Migration de données
+### 8. Migration de données
 
-- Les `Artist` existants ont firstName + lastName, donc valides sous le nouveau schéma sans modification.
-- Les `Play.artists[]` existants n'ont pas `billedAs`. Stratégie pragmatique : **rendre `billedAs` optionnel** au niveau du schéma, et faire un fallback dans `displayName` (`billedAs ?? firstName + ' ' + lastName`). On peut migrer en arrière-plan plus tard avec un script.
+- Tes Artists existants ont `firstName + lastName`. Stratégie : un petit script Node qui itère et écrit `name = firstName + ' ' + lastName`, puis supprime les anciens champs.
+- Les `User.artistProfile` (singulier) deviennent `User.artistProfiles: [artistId]` (tableau d'un élément initialement).
+- Les `Play.artists[]` n'ont pas de `billedAs` à backfiller.
+- Si tu n'as pas encore d'artistes avec multiple identités dans tes données actuelles, la migration est triviale (1 Artist par Artist existant).
 
 ---
 
 ## Ordre d'exécution suggéré
 
-1. **Schémas** (`artist.js`, `play.js`) + validation custom. Tester que les données existantes restent valides.
-2. **`findSimilarArtists`** — refonte avec petit fichier de tests sur les données réelles.
-3. **Endpoints artist** dans l'ordre : reads (`GET`) d'abord, puis writes (`POST`).
-4. **Endpoints play** : populates d'abord, validation `billedAs` ensuite.
-5. **Patch user** — minimal, mais à vérifier.
-6. **Service notifications** — audit + adoption de `displayName`.
-7. **Frontend** : `displayName` helper en premier, puis vues, puis formulaires. Le picker en dernier (dépend de la search corrigée).
+1. **Schémas** (`artist.js`, `user.js`) + hooks (`pre('validate')` pour sortableName, anti-update).
+2. **Script de migration** des données existantes (firstName+lastName → name; artistProfile → artistProfiles).
+3. **`findSimilarArtists`** — refonte simplifiée.
+4. **Endpoints artist** : reads (`GET`) d'abord, puis writes (`POST`).
+5. **Endpoints play** : populates uniquement.
+6. **Endpoints user** : gestion de `artistProfiles` pluriel.
+7. **Service notifications** — audit + adoption de `displayName`.
+8. **Frontend** : `displayName` helper en premier, puis vues, puis formulaires. Le picker en dernier (dépend de la search corrigée).
 
 ---
 
@@ -106,13 +138,7 @@ Quand Arnaud Mathey monte un spectacle en tant que Chouchou, c'est une propositi
 
 ### Le picker côté frontend
 
-Composant typeahead + chips (style Gmail), basé sur `<Autocomplete multiple>` de MUI.
-
-**Question à trancher** : un artiste à plusieurs noms apparaît dans la dropdown comme :
-- **(a)** plusieurs entrées choisissables (« Arnaud Mathey », « Raclor », « Chouchou »), chacune fixant le `billedAs` immédiatement.
-- **(b)** une seule entrée + un sous-choix « Crédité comme : [select] » après sélection.
-
-L'option (a) est plus directe. L'option (b) est plus propre si la liste d'artistes devient grande.
+Composant typeahead + chips (style Gmail), basé sur `<Autocomplete multiple>` de MUI. Chaque Artist apparaît comme une entrée distincte — pas de gymnastique multi-rangées pour un même artiste.
 
 **Question à trancher** : que se passe-t-il si l'utilisateur tape un nom qui n'existe pas ?
 - **Option A** : silence, doit choisir dans la liste.
@@ -120,22 +146,25 @@ L'option (a) est plus directe. L'option (b) est plus propre si la liste d'artist
 
 Recommandation : commencer par **A**, ajouter **B** dans un second temps.
 
-### Flux de création depuis le formulaire de play
+### Affichage des liens entre alias
 
-Si on choisit l'option B ci-dessus, le pré-remplissage du dialog de création depuis un texte saisi pose la question : on remplit `firstName` + `lastName` (en splittant le texte) ou `stageName` ? L'utilisateur devra basculer manuellement.
+Sur la page profil d'un Artist, afficher la liste des `alsoKnownAs` (« cet artiste joue aussi sous : Raclor, Chouchou ») avec liens internes vers chaque profil. Utile pour la navigation et pour la SEO.
+
+L'édition de `alsoKnownAs` (qui peut linker quoi) est en phase 2.
 
 ---
 
 ## Bugs et tâches connexes à traiter en cours de route
 
-- **Bug multi-tokens dans `/search`** : « Yann m » retourne `[]` aujourd'hui (regex `^yann m` ne matche aucun champ). À fixer en intégrant la stratégie de tokens dans la refonte de search.
-- **Bug accents dans `findSimilarArtists`** : la stratégie de pré-filtrage compare la première lettre normalisée à la DB non normalisée. « Élise » et « Elise » ne se matchent pas.
-- **Décalage entre `PlayForm` et le schéma `play`** : le form envoie `comediens: [{firstName, lastName, role}]`, le schéma attend `artists: [{artist: ObjectId, personnage: String}]`. Le picker est ce qui résout ce décalage — donc cohérent avec ce plan.
+- **Bug multi-tokens dans `/search`** : « Yann m » retourne `[]` aujourd'hui (regex `^yann m` ne matche aucun champ). Avec le nouveau schéma où `name = "Yann Marguet"`, le regex `^yann m` *matche* directement. Donc le bug peut disparaître naturellement — à vérifier en testant.
+- **Bug accents dans `findSimilarArtists`** : la stratégie de pré-filtrage compare la première lettre normalisée à la DB non normalisée (« Élise » vs « Elise »). À régler dans la refonte.
+- **Décalage entre `PlayForm` et le schéma `play`** : le form envoie `comediens: [{firstName, lastName, role}]`, le schéma attend `artists: [{artist: ObjectId, personnage: String}]`. Le picker est ce qui résout ce décalage.
 
 ---
 
 ## Ce qui n'est PAS dans le scope de cette refonte
 
-- Le flux self-claim (un utilisateur qui revendique un Artist qu'il n'a pas créé) — déjà identifié comme phase 2.
-- Le merge admin de deux Artists qui sont en fait la même personne — utile mais à reporter, pas bloquant pour le launch.
-- Toute l'UX d'édition d'artiste (ajouter/retirer un stageName a posteriori) — peut venir après le launch.
+- Le flux self-claim (un utilisateur qui revendique un Artist qu'il n'a pas créé) — phase 2.
+- Le merge admin de deux Artists qui s'avèrent être la même identité scénique (réel doublon) — phase 2.
+- L'UI d'édition d'`alsoKnownAs` (gestion des liens entre alias) — phase 2.
+- L'UI de gestion de `published` (toggle visibilité d'un profil) — peut venir avec le self-claim.
