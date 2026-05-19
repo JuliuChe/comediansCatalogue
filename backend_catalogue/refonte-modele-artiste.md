@@ -32,6 +32,7 @@ Conséquences concrètes :
 **`models/artist.js`**
 - `name: String` — **requis**, le nom de cette identité, affiché tel quel
 - `sortableName: String` — dérivé via hook, indexé, alimenté par `normalize(name)`
+- `nameTokens: [String]` — dérivé via hook, indexé (multikey). Tableau de tokens normalisés extraits de `name`, pour permettre des filtres « par fragment de nom » côté UI (préfixe sur n'importe quel composant : prénom, lastName, particule, nom composé) sans avoir à parser firstName/lastName depuis un nom libre
 - `published: Boolean` — visibilité publique de ce profil, défaut `true`
 - `alsoKnownAs: [ObjectId ref Artist]` — liens optionnels vers les autres identités de la même personne (mutuel)
 - `dateOfBirth: Date` — inchangé
@@ -61,14 +62,14 @@ L'utilité : pages profil (« cet artiste joue aussi sous : X, Y »), SEO (liens
 
 ### 1. Schémas
 
-- `models/artist.js` — réécriture quasi complète. Plus de firstName/lastName/stageNames. Un seul `name` requis. Ajouter `sortableName`, `published`, `alsoKnownAs`.
+- `models/artist.js` — réécriture quasi complète. Plus de firstName/lastName/stageNames. Un seul `name` requis. Ajouter `sortableName`, `nameTokens`, `published`, `alsoKnownAs`.
 - `models/user.js` — renommer `artistProfile` → `artistProfiles`, passer au type `[ObjectId]`.
 - `models/play.js` — aucune modification.
 
 ### 2. Hooks et validation Artist
 
-- Hook `pre('validate')` : assigne `sortableName = normalize(this.name)`. Plus de règle « au moins un de » à valider — Mongoose gère via `required: true` sur `name`.
-- Hook anti-update sur `findOneAnd*`, `update*`, `replace*` : force les writes à passer par `findById + .save()` pour que `pre('validate')` tourne et maintienne `sortableName` à jour.
+- Hook `pre('validate')` : assigne `sortableName = normalize(this.name)` et dérive `nameTokens = sortableName.split(' ').filter(Boolean)`. Plus de règle « au moins un de » à valider — Mongoose gère via `required: true` sur `name`.
+- Hook anti-update sur `findOneAnd*`, `update*`, `replace*` : force les writes à passer par `findById + .save()` pour que `pre('validate')` tourne et maintienne `sortableName` et `nameTokens` à jour.
 
 ### 3. Utilitaires backend
 
@@ -104,6 +105,7 @@ L'utilité : pages profil (« cet artiste joue aussi sous : X, Y »), SEO (liens
 
 - Supprimer l'ancien index `{lastName: 1, firstName: 1, _id: 1}`.
 - Index composé `{sortableName: 1, _id: 1}` pour pagination stable du directory.
+- Index multikey automatique sur `nameTokens` (déclaré inline via `index: true`) pour les filtres par fragment de nom.
 
 ### 7. Frontend
 
