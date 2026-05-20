@@ -55,10 +55,11 @@ const tokenLevelSimilarity = (inputTokens, candidateTokens) =>{
   if (inputTokens.length===0) return 0
   for ( const inTok of inputTokens){
     //const bestCandidateMatch = {token:candidateTokens[0], score:0} 
-    const bestLocalScore = 0
+    let bestLocalScore = 0
     for (const candTok of candidateTokens){
       const localScore = similarity(inTok, candTok) 
-      if(localScore>bestCandidateMatch.score){
+      if(localScore>bestLocalScore){
+      // if(localScore>bestCandidateMatch.score){
         //bestCandidateMatch.token=candTok
         //bestCandidateMatch.score = localScore
         bestLocalScore = localScore

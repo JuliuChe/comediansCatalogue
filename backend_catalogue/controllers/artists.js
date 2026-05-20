@@ -59,9 +59,10 @@ artistsRouter.get('/search', async (request, response) => {
 })
 
 artistsRouter.get('/check-duplicates', async (request, response) => {
-  const typedFirstName = request.query.firstName || ''
-  const typedLastName = request.query.lastName || ''
-  const similar = await findSimilarArtists(Artist, normalize(typedFirstName), normalize(typedLastName))
+  const typedName = (request.query.name || '').trim()
+  if(!typedName) return response.status(400).json({error:'name_required', message:'The name parameter is missing from the request and cannot be empty' })
+
+  const similar = await findSimilarArtists(Artist, typedName)
   
   return response.json(similar)
 })
@@ -125,7 +126,7 @@ artistsRouter.post('/', async (request, response) =>{
   }
 
   if (!forceCreate) {
-    const similar = await findSimilarArtists(Artist, normalize(name))
+    const similar = await findSimilarArtists(Artist, name)
     //TODO do not check for doublons here. 
     // If a post request is issued, there should not be a doublons (pre-check)
     if (similar.length > 0) {

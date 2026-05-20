@@ -33,8 +33,7 @@ content-type:application/json
 Authorization: Bearer {{login.response.body.token}}
 
 {
-  "firstName":"Aristide",
-  "lastName":"Bruand",
+  "name":"Arnaud Mathey",
   "dateOfBirth": "2005-01-15"
 }
 
@@ -48,6 +47,12 @@ content-type:application/json
 
 # @name getAllPage2
 GET {{baseUrl}}/artists?limit=5&cursor=eyJmaXJzdE5hbWUiOiJPcGjDqWxpZSIsImxhc3ROYW1lIjoiSm9iaW4iLCJfaWQiOiI2OWY4MzQ0MzYxN2Y3ZGNhMzM3MTMzMmQifQ HTTP/1.1
+content-type:application/json
+
+###
+
+# @name chekDuplicates
+GET {{baseUrl}}/artists/check-duplicates?name=Arno Mathei
 content-type:application/json
 
 ###

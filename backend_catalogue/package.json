@@ -13,7 +13,8 @@
     "test": "cross-env NODE_ENV=test node --test  --test-concurrency=1",
     "test:only": "cross-env NODE_ENV=test node --test --test-only",
     "test:name": "cross-env NODE_ENV=test node --test --test-name-pattern",
-    "start:test": "cross-env NODE_ENV=test node --watch index.js"
+    "start:test": "cross-env NODE_ENV=test node --watch index.js",
+    "migrate:artists": "cross-env NODE_ENV=development node scripts/migrate-artists"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

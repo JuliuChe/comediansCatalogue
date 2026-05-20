@@ -6,11 +6,6 @@ const userSchema = mongoose.Schema({
   artistProfiles: [{
       type: mongoose.Schema.Types.ObjectId,
       ref:'Artist', //The ref field specifies the name of the model being referenced
-      default: null,
-      index: {
-        unique: true,
-        partialFilterExpression: { artistProfile: { $type: 'objectId' } }
-      }
   }],
   username: {
     type: String,
@@ -49,6 +44,8 @@ userSchema.set('toJSON', {
     delete returnedObject.passwordHash
   }
 })
+
+userSchema.index({ artistProfiles: 1 }, { unique: true, sparse: true })
 
 const User =  mongoose.model('User', userSchema)
 
