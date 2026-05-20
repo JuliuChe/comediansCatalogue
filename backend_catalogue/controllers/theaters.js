@@ -32,7 +32,10 @@ theatersRouter.get('/search', async (request, response) =>{
   const city = request.query.city || ''
   if (!city){
     const safeQuery = await escapeRegex(name)
-  const regex = new RegExp(`^${safeQuery}`, 'i') // 'i' = insensible à la casse
+    const regex = new RegExp(`^${safeQuery}`, 'i') // 'i' = insensible à la casse
+
+
+  
 
   const artists = await Artist
     .find({
@@ -86,7 +89,9 @@ theatersRouter.delete('/:id', async (request, response) => {
   response.status(204).end()
 })
 
-playsRouter.post('/', async (request, response) => {
+
+//TODO AT THE MOMENT THE FOLLOWING REQUESTS ARE COPIES OF PLAYS 
+theatersRouter.post('/', async (request, response) => {
   const userId= request.user
   if (!userId) return response.status(401).json({error:'token invalid'})
   
@@ -159,7 +164,7 @@ playsRouter.post('/', async (request, response) => {
 
 
 // PUT /:id : modifier une pièce (créateur uniquement)
-playsRouter.put('/:id', async (request, response) => {
+theatersRouter.put('/:id', async (request, response) => {
   const userId= request.user
   if (!userId) return response.status(400).json({error:'token invalid'})
   
@@ -234,3 +239,5 @@ playsRouter.put('/:id', async (request, response) => {
 
   response.json(updatedPlay)
 })
+
+module.exports = theatersRouter

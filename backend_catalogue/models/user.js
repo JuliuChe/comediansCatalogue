@@ -3,7 +3,7 @@ const mongoose = require('mongoose')
 mongoose.set('strictQuery', false)
 
 const userSchema = mongoose.Schema({
-  artistProfile: {
+  artistProfiles: [{
       type: mongoose.Schema.Types.ObjectId,
       ref:'Artist', //The ref field specifies the name of the model being referenced
       default: null,
@@ -11,7 +11,7 @@ const userSchema = mongoose.Schema({
         unique: true,
         partialFilterExpression: { artistProfile: { $type: 'objectId' } }
       }
-  },
+  }],
   username: {
     type: String,
     required: true,

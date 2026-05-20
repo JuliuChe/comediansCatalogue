@@ -17,7 +17,7 @@ artistsRouter.get('/', paginationMiddleware({maxLimit:100}),
     const result = await paginate(Artist, 
       {
         populate:{path:'createdBy', select:'username'},
-        sort: {firstName:1, lastName:1},
+        sort: {sortableName:1},
         ...request.pagination})
     response.json(result)
 
@@ -116,16 +116,16 @@ artistsRouter.post('/', async (request, response) =>{
   if (!user) return response.status(404).json({error:'user does not exist'})
   
   // const { firstName, lastName, dateOfBirth, forceCreate } = normalizeFields(request.body, ['firstName', 'lastName'])
-  const { firstName, lastName, dateOfBirth, forceCreate } = request.body
+  const { name, dateOfBirth, forceCreate } = request.body
 
-  if (!firstName || !lastName) {
+  if (!name) {
     return response.status(400).json({ 
-      error: 'firstName and lastName are required' 
+      error: 'Name for the artist is required' 
     })
   }
 
   if (!forceCreate) {
-    const similar = await findSimilarArtists(Artist, normalize(firstName), normalize(lastName))
+    const similar = await findSimilarArtists(Artist, normalize(name))
     //TODO do not check for doublons here. 
     // If a post request is issued, there should not be a doublons (pre-check)
     if (similar.length > 0) {
@@ -138,8 +138,7 @@ artistsRouter.post('/', async (request, response) =>{
   }
  
   const artist = new Artist({
-    firstName,
-    lastName,
+    name,
     dateOfBirth,
     createdBy:userId
   })

@@ -18,9 +18,9 @@ playsRouter.get('/', paginationMiddleware({maxLimit:100}),
         {
           populate:[
             {path:'createdBy', select:'username firstName lastName'},
-            {path:'director', select:'firstName lastName'},
+            {path:'director', select:'name'},
             {path:'theater', select:'name address.city'},
-            {path:'artists.artist', select:'firstName lastName'}
+            {path:'artists.artist', select:'name'}
           ],
           filter: when ==='upcoming' ?  { $or: [
             {endDate: { $gte: now}}, 
@@ -42,9 +42,9 @@ playsRouter.get('/:id', async (request, response) => {
   const id = request.params.id
   const plays = await Play.findById(id)
     .populate('createdBy', { username: 1, firstName: 1, lastName: 1 })
-    .populate('director', { firstName: 1, lastName: 1 })
+    .populate('director', { name: 1 })
     .populate('theater', { name: 1, 'address.city':1 })
-    .populate('artists.artist', { firstName: 1, lastName: 1 })
+    .populate('artists.artist', { name: 1 })
   
   if(!plays) return response.status(404).end()
   
@@ -110,9 +110,9 @@ playsRouter.post('/', async (request, response) => {
 
   const savedPlay = await play.save()
   await notifyCastChanges(null, savedPlay)  
-  await savedPlay .populate('director', { firstName: 1, lastName: 1 })
+  await savedPlay .populate('director', { name: 1 })
   await savedPlay .populate('theater', { name: 1, 'address.city':1 })
-  await savedPlay .populate('artists.artist', { firstName: 1, lastName: 1 })
+  await savedPlay .populate('artists.artist', { name: 1 })
 
   response.json(savedPlay)
 
