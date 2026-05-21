@@ -1,17 +1,9 @@
-const { normalize } = require('../utils/stringMatching')
+const { normalize, getTrigrams } = require('../utils/stringMatching')
 const mongoose = require('mongoose')
 
 mongoose.set('strictQuery', false)
 // 1. Schema of artist
 const artistSchema = mongoose.Schema({
-  firstName: {
-    type:String,
-    trim: true
-  },
-  lastName: {
-    type:String,
-    trim: true
-  },
   name:{
     type:String,
     trim: true,
@@ -37,7 +29,6 @@ const artistSchema = mongoose.Schema({
     type:mongoose.Schema.Types.ObjectId,
     ref:'Artist'
   }],
-  dateOfBirth: Date,
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref:'User'
@@ -49,13 +40,7 @@ artistSchema.pre('validate', async function() {
   //this is the document about to be saved
   this.sortableName=normalize(this.name)
   this.nameTokens = this.sortableName.split(' ').filter(Boolean)
-  this.nameTrigrams = this.nameTokens.flatMap( tok => {
-    let trigrams = []
-    for (let i = 0; i+3<=tok.length;i++){
-      trigrams.push(tok.slice(i,i+3))
-    }
-    return trigrams
-  })
+  this.nameTrigrams = getTrigrams(this.nameTokens)
  })   
 
 // 3. hook anti-update

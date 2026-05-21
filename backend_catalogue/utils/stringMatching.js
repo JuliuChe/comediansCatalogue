@@ -31,7 +31,7 @@ const getTrigrams = (tokens) => {
   return resultTrigrams
 }
 
-const findSimilarArtists = async (Artist, artistNameToFind, threshold = 0.5) => {
+const findSimilarArtists = async (Artist, artistNameToFind, {threshold = 0.5, limit=Infinity}={}) => {
   
   const searchableTokens = normalize(artistNameToFind).split(' ').filter(Boolean)
   const searchableTrigrams = getTrigrams(searchableTokens)
@@ -46,7 +46,7 @@ const findSimilarArtists = async (Artist, artistNameToFind, threshold = 0.5) => 
       score
     }))
   
-  return similar
+  return similar.slice(0, limit)
 }
 
 const tokenLevelSimilarity = (inputTokens, candidateTokens) =>{
@@ -78,5 +78,5 @@ function normalizeFields(obj, fields) {
   );
 }
 
-module.exports = { normalizeFields, similarity, findSimilarArtists, normalize }
+module.exports = { normalizeFields, similarity, findSimilarArtists, normalize, getTrigrams }
 

@@ -18,6 +18,7 @@ usersRouter.post('/', async (request, response) => {
     firstName,
     lastName,
     email,
+    datOfBirth,
     passwordHash
   })
 
@@ -33,29 +34,37 @@ usersRouter.patch('/me', async (request, response) => {
   const user = await User.findById(userId)
   if (!user) return response.status(404).json({error:'user does not exist'})
 
-  const {artistId, username, firstName, lastName, email} = request.body
+  const {addArtistId, removeArtistId, username, firstName, lastName, email, dateOfBirth} = request.body
 
   // SNAPSHOT avant mutation
-  const oldArtistProfile = user.artistProfile
+  const oldArtistProfiles = user.artistProfiles.map(a => a.toString())
 
-  if (artistId !== undefined) {
-    const artist = await Artist.findById(artistId)
-    if(!artist) return response.status(404).json({error:'artist id does not exist'})
-    user.artistProfile = artistId
+  if (addArtistId !== undefined) {
+    const artist = await Artist.findById(addArtistId)
+    if(!artist) return response.status(404).json({error:'artist id to add does not exist'})
+    if(!user.artistProfiles.some(id => id.equals(addArtistId))) {
+       user.artistProfiles.push(addArtistId)
+    } 
+  }
+  if (removeArtistId !== undefined) {
+    const artist = await Artist.findById(removeArtistId)
+    if(!artist) return response.status(404).json({error:'artist id to remove does not exist'})
+    if(user.artistProfiles.some(id => id.equals(removeArtistId))) {
+      user.artistProfiles = user.artistProfiles.filter( aId => aId.toString() !== removeArtistId)
+    } 
   }
   if (username !== undefined) user.username = username
   if (firstName !== undefined) user.firstName = firstName
   if (lastName !== undefined) user.lastName = lastName
   if (email !== undefined) user.email = email
+  if (dateOfBirth !== undefined) user.dateOfBirth = dateOfBirth
 
   const updatedUser = await user.save()
-
-  const oldId = oldArtistProfile?.toString() ?? null
-  const newId = user.artistProfile?.toString() ?? null
-  if (newId && newId !== oldId) {
-    await notifyExistingPlaysForArtist(user._id, user.artistProfile)
+  
+  if(addArtistId && !oldArtistProfiles.includes(addArtistId)){
+    await notifyExistingPlaysForArtist(user._id, addArtistId)
   }
-
+    
   response.json(updatedUser)
   
 })

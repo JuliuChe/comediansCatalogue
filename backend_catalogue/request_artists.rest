@@ -33,8 +33,7 @@ content-type:application/json
 Authorization: Bearer {{login.response.body.token}}
 
 {
-  "name":"Arnaud Mathey",
-  "dateOfBirth": "2005-01-15"
+  "name":"Albert levert"
 }
 
 ### 
@@ -52,13 +51,13 @@ content-type:application/json
 ###
 
 # @name chekDuplicates
-GET {{baseUrl}}/artists/check-duplicates?name=Arno Mathei
+GET {{baseUrl}}/artists/check-duplicates?name=Vladim Venaison
 content-type:application/json
 
 ###
 
 # @name getArtistBySearch
-GET {{baseUrl}}/artists/search?q=fran
+GET {{baseUrl}}/artists/search?q=jard
 content-type:application/json
 
 ### 
@@ -71,13 +70,13 @@ Authorization: Bearer {{login.response.body.token}}
 ###
 
 # @name getPlaysByArtistId
-GET {{baseUrl}}/artists/69f82da15219d8d08fd0769d/plays
+GET {{baseUrl}}/artists/69f83458617f7dca3371332e/plays
 content-type:application/json
 
 ###
 
 # @name getArtistById
-GET {{baseUrl}}/artists/69f82e375219d8d08fd0769e HTTP/1.1
+GET {{baseUrl}}/artists/69f83458617f7dca3371332e HTTP/1.1
 content-type:application/json
 
 ###

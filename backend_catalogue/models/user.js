@@ -30,6 +30,9 @@ const userSchema = mongoose.Schema({
     unique: true,
     lowercase: true,
     trim: true},
+  dateOfBirth:{
+    type:Date,
+    required: true},
   passwordHash: {
      type: String,
     required: true

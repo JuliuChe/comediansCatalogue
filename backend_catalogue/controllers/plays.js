@@ -110,9 +110,9 @@ playsRouter.post('/', async (request, response) => {
 
   const savedPlay = await play.save()
   await notifyCastChanges(null, savedPlay)  
-  await savedPlay .populate('director', { name: 1 })
-  await savedPlay .populate('theater', { name: 1, 'address.city':1 })
-  await savedPlay .populate('artists.artist', { name: 1 })
+  await savedPlay.populate('director', { name: 1 })
+  await savedPlay.populate('theater', { name: 1, 'address.city':1 })
+  await savedPlay.populate('artists.artist', { name: 1 })
 
   response.json(savedPlay)
 
@@ -217,11 +217,11 @@ playsRouter.put('/:id', async (request, response) => {
   if( likes !== undefined) play.likes = likes
 
   const updatedPlay = await play.save()
-  await notifyCastChanges(oldSnapshot, play)  
+  await notifyCastChanges(oldSnapshot, updatedPlay)  
 
-  await updatedPlay.populate('director', { firstName: 1, lastName: 1 })
+  await updatedPlay.populate('director', { name: 1 })
   await updatedPlay.populate('theater', { name: 1, 'address.city':1 })
-  await updatedPlay.populate('artists.artist', { firstName: 1, lastName: 1 })
+  await updatedPlay.populate('artists.artist', { name: 1 })
 
   response.json(updatedPlay)
 })

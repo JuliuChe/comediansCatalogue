@@ -2,34 +2,41 @@ const Notification = require('../models/notification')
 const User = require('../models/user')
 const findPlaysByArtistId=require('./artists') 
 
+const computeCastDiff = (oldPlay, newPlay) => {
+  const newParticipants = [
+    ...newPlay.artists.map(a => ({id: a.artist.toString(), role:'cast'})),
+    ...(newPlay.director ? [{id: newPlay.director.toString(), role:'director'}]:[])
+  ]
+  const oldParticipants = oldPlay
+    ? [
+        ...oldPlay.artists.map(a => ({id: a.artist.toString(), role:'cast'})),
+        ...(oldPlay.director ? [{id: oldPlay.director.toString(), role:'director'}]:[])
+      ]
+    : []
 
-const notifyCastChanges = async (oldPlay, newPlay) => {
+  const added = newParticipants.filter(newMember => !oldParticipants.some( oldMember => oldMember.id === newMember.id && oldMember.role === newMember.role ))
+  const removed = oldParticipants.filter(oldMember => !newParticipants.some( newMember => newMember.id === oldMember.id && newMember.role === oldMember.role ))
+  return {added, removed}  
+}
 
-  const newArtistsIds = newPlay.artists.map( a => a.artist.toString())
-  const oldArtistsIds=oldPlay ? oldPlay.artists.map( a => a.artist.toString()):[]
-  const addedCastsIds = newArtistsIds.filter( (artist) => !oldArtistsIds.includes(artist))
-
-  const newDirectorId = newPlay.director?.toString() ?? null
-  const oldDirectorId = oldPlay?.director?.toString() ?? null
-  const addedDirectorId = (newDirectorId && newDirectorId !== oldDirectorId) 
-    ? newDirectorId 
-    : null
-  
-  const artistsToAdd = [...addedCastsIds.map(id => ({artistId:id, role:'cast'})),
-     ...(addedDirectorId ? [{artistId:addedDirectorId, role:'director'}] : []) ]
-  if (artistsToAdd.length === 0) return
-
-  const artistsIds = artistsToAdd.map(a => a.artistId)
-  const usersToNotify = await User.find({artistProfile:{$in:artistsIds}},'_id artistProfile')
-  const recipientByArtistId = new Map(usersToNotify.map( u => [u.artistProfile.toString(), u._id]))
-  for (const {artistId, role} of artistsToAdd){
+const createCastAddedNotifications = async (added, playId) => {
+  if (added.length === 0) return
+  const artistsIds = added.map(a => a.id)
+  const usersToNotify = await User.find({artistProfiles:{$in:artistsIds}},'_id artistProfiles')
+  const recipientByArtistId = new Map(usersToNotify.flatMap( user => {
+    return user.artistProfiles
+    .map( artistId => artistId.toString())
+    .filter(artistId => artistsIds.includes(artistId))
+    .map ( artistId => [artistId, user._id])
+  }))
+  for (const {id:artistId, role} of added){
     const recipient = recipientByArtistId.get(artistId)
     if(!recipient) continue
     try{
-      await Notification.create ({
+      await Notification.create({
         recipient: recipient, 
         type: 'cast_added', 
-        play: newPlay._id, 
+        play: playId, 
         artist: artistId, 
         role: role
       })
@@ -37,6 +44,27 @@ const notifyCastChanges = async (oldPlay, newPlay) => {
        if (err.code !== 11000) throw err   // duplicate key → idempotence, on ignore
     }
   }
+}
+
+const withdrawCastRemovedNotifications= async (removed,playId) => {
+  if (removed.length === 0) return
+
+  const notifs = await Notification.updateMany( 
+    {
+    play:playId,
+    $or : removed.map(({id, role}) => ({artist:id, role:role})),
+    status: { $in : ['pending', 'accepted'] } 
+    },
+  {
+    $set: {status:'withdrawn'}
+  })
+}
+const notifyCastChanges = async (oldPlay, newPlay) => {
+  const {added, removed} = computeCastDiff(oldPlay, newPlay)
+  await createCastAddedNotifications(added, newPlay._id)
+  await withdrawCastRemovedNotifications(removed, newPlay._id)
+
+
 
 }
 

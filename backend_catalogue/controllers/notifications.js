@@ -22,9 +22,9 @@ notificationsRouter.get('/', async (request, response) => {
 
   const notifsOfUser = await Notification.find({ recipient:userId,status:status })
     .populate({path:'play', select: {title: 1, director:1, startDate: 1}, 
-      populate : {path:'director', select: {firstName:1, lastName:1}}
+      populate : {path:'director', select: {name:1}}
     })
-    .populate('artist', {firstName:1, lastName:1})
+    .populate('artist', { name:1})
     .sort({ createdAt: -1 })
   
   
@@ -61,9 +61,9 @@ notificationsRouter.patch('/:id', async (request, response) => {
   await notification  
     .populate([{
       path:'play', select: {title: 1, director:1, startDate: 1}, 
-        populate : {path:'director', select: {firstName:1, lastName:1}}
+        populate : {path:'director', select: {name:1}}
       },
-    { path:'artist', select:{firstName:1, lastName:1}}])
+    { path:'artist', select:{name:1}}])
   
   response.json(notification)
   

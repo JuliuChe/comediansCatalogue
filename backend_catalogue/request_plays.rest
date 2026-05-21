@@ -67,6 +67,7 @@ Authorization: Bearer {{login.response.body.token}}
       {"artist":"69f3ca276aa1c9c2698e6d85"},
       {"artist":"69fa5c359b465d321a202432"}, 
       {"artist":"69f82e375219d8d08fd0769e"},
-      {"artist":"69f82da15219d8d08fd0769d"}
+      {"artist":"69f82da15219d8d08fd0769d"},
+      {"artist":"69f82e525219d8d08fd0769f"}
       ]
 } 

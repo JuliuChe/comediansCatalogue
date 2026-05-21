@@ -25,44 +25,22 @@ artistsRouter.get('/', paginationMiddleware({maxLimit:100}),
 
 artistsRouter.get('/search', async (request, response) => {
   // ../api/search?q=${query}
-  const query = request.query.q || ''
+  const query = (request.query.q || '').trim()
   if (query.length<2) {
     return response.json([])
   }
-
-  console.log(query)
-
-  const safeQuery = await escapeRegex(query)
-  const regex = new RegExp(`^${safeQuery}`, 'i') // 'i' = insensible à la casse
-
-  const artists = await Artist
-    .find({
-      $or: [{firstName:regex},{lastName:regex}]
-    })
-    .limit(10)
-    .select('firstName lastName')
-
-  const sorted = artists
-    .map(a => ({
-      artist: a,
-      score: Math.max(
-        similarity(a.firstName, query),
-        similarity(a.lastName, query),
-        similarity(`${a.firstName} ${a.lastName}`, query)
-      )
-    }))
-    .sort((a, b) => b.score - a.score)
-    .map(item => item.artist)
-
-
-    return response.json(sorted)
+  const maxResults = 10
+  const similar = await findSimilarArtists(Artist, query, {threshold : 0.3, limit:maxResults})
+ 
+  return response.json(similar)
 })
 
 artistsRouter.get('/check-duplicates', async (request, response) => {
+  // .../api/check-duplicates?name=${name}
   const typedName = (request.query.name || '').trim()
   if(!typedName) return response.status(400).json({error:'name_required', message:'The name parameter is missing from the request and cannot be empty' })
 
-  const similar = await findSimilarArtists(Artist, typedName)
+  const similar = await findSimilarArtists(Artist, typedName, {threshold : 0.6})
   
   return response.json(similar)
 })
@@ -74,19 +52,20 @@ artistsRouter.get('/me', async (request, response) => {
   const user = await User.findById(userId)
   if (!user) return response.status(404).json({error:'user does not exist'})
   
-  if(!user.artistProfile) return response.status(204).end()
+  if(user.artistProfiles.length === 0) return response.status(204).end()
+  const profiles = await Promise.all(user.artistProfiles.map(async (artistId)=> {
+    const artist = await Artist.findById(artistId)
+    const artistPlays = await findPlaysByArtistId(artistId)
+    return {artist, artistPlays} 
+  }))
 
-  const userPlays = await findPlaysByArtistId(user.artistProfile)
-
-  const artist = await Artist.findById(user.artistProfile)
-
-  response.json({artist, userPlays})
+  response.json(profiles)
 
 })
 
 artistsRouter.get('/:id/plays', async (request, response) =>{
   const plays = await findPlaysByArtistId(request.params.id)
-  const userOfArtist = await User.findOne({artistProfile:request.params.id})
+  const userOfArtist = await User.findOne({artistProfiles:request.params.id})
   if (!userOfArtist){
     return response.json(plays)  
   }
@@ -113,11 +92,10 @@ artistsRouter.post('/', async (request, response) =>{
   const userId = request.user
   if(!userId) return response.status(401).json({error: 'token invalid'})
   
-  const user = User.findById(userId)
+  const user = await User.findById(userId)
   if (!user) return response.status(404).json({error:'user does not exist'})
   
-  // const { firstName, lastName, dateOfBirth, forceCreate } = normalizeFields(request.body, ['firstName', 'lastName'])
-  const { name, dateOfBirth, forceCreate } = request.body
+  const { name } = request.body
 
   if (!name) {
     return response.status(400).json({ 
@@ -125,22 +103,17 @@ artistsRouter.post('/', async (request, response) =>{
     })
   }
 
-  if (!forceCreate) {
-    const similar = await findSimilarArtists(Artist, name)
-    //TODO do not check for doublons here. 
-    // If a post request is issued, there should not be a doublons (pre-check)
-    if (similar.length > 0) {
-      return response.status(409).json({
-        error: 'similar_artists_found',
-        message: 'Des artists au nom similaire existent déjà. Est-ce un doublon ?',
-        similar
-      })
-    }
+  const exactExisting = await Artist.findOne({ sortableName: normalize(name) })
+  if (exactExisting ) {
+    return response.status(409).json({
+      error: 'artist_already_exists',
+      existing: { id: exactExisting._id, name: exactExisting.name }
+    })
   }
+
  
   const artist = new Artist({
     name,
-    dateOfBirth,
     createdBy:userId
   })
 

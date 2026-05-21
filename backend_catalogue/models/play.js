@@ -13,7 +13,7 @@ const playSchema = mongoose.Schema({
     },
   artists: [{
     artist: { type: mongoose.Schema.Types.ObjectId, ref:'Artist' }, //The ref field specifies the name of the model being referenced
-    personnage:String
+    personnage:[String]
   }],
   startDate: {
     type: Date,

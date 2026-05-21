@@ -22,7 +22,7 @@ POST {{baseUrl}}/login/ HTTP/1.1
 content-type: application/json
 
 {
-  "username": "jean_duj",
+  "username": "zozo",
   "password": "test_pw"
 }
 
@@ -41,7 +41,7 @@ content-type:application/json
 Authorization: Bearer {{login.response.body.token}}
 
 {
-  "artistId": "69f82da15219d8d08fd0769d"
+  "addArtistId": "69f82e525219d8d08fd0769f"
 }
 
 ###
