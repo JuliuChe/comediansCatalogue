@@ -1,4 +1,4 @@
-const { findSimilarArtists, similarity, normalizeFields, normalize } = require('../utils/stringMatching')
+const { findSimilarArtists, normalizeFields, normalize } = require('../utils/stringMatching')
 const { escapeRegex } = require('../utils/escapeRegex')
 const  paginate = require('../utils/paginate')
 const { paginationMiddleware } = require('../utils/middleware')

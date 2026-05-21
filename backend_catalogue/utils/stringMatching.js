@@ -1,14 +1,5 @@
 const { distance } = require('fastest-levenshtein')
 
-const normalize = (str) => {
-  return (str || '')
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[-'']/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
 
 const similarity = (str1, str2) => {
   const n1 = normalize(str1)
@@ -19,6 +10,43 @@ const similarity = (str1, str2) => {
   const maxLength = Math.max(n1.length, n2.length)
   return 1 - (distance(n1, n2) / maxLength)
 }
+
+
+const tokenLevelSimilarity = (inputTokens, candidateTokens) =>{
+  let weightedScore = 0
+  let totalLength = 0
+  if (inputTokens.length===0) return 0
+  for ( const inTok of inputTokens){
+    //const bestCandidateMatch = {token:candidateTokens[0], score:0} 
+    let bestLocalScore = 0
+    for (const candTok of candidateTokens){
+      const localScore = similarity(inTok, candTok) 
+      if(localScore>bestLocalScore){
+      // if(localScore>bestCandidateMatch.score){
+        //bestCandidateMatch.token=candTok
+        //bestCandidateMatch.score = localScore
+        bestLocalScore = localScore
+      }
+    }
+    totalLength+=inTok.length
+    // weightedScore+=bestCandidateMatch.score*inTok.length
+    weightedScore+=bestLocalScore*inTok.length
+  }
+  return weightedScore/totalLength
+}
+
+
+
+const normalize = (str) => {
+  return (str || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[-'']/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 
 const getTrigrams = (tokens) => {
   const resultTrigrams = tokens.flatMap( tok => {
@@ -49,28 +77,33 @@ const findSimilarArtists = async (Artist, artistNameToFind, {threshold = 0.5, li
   return similar.slice(0, limit)
 }
 
-const tokenLevelSimilarity = (inputTokens, candidateTokens) =>{
-  let weightedScore = 0
-  let totalLength = 0
-  if (inputTokens.length===0) return 0
-  for ( const inTok of inputTokens){
-    //const bestCandidateMatch = {token:candidateTokens[0], score:0} 
-    let bestLocalScore = 0
-    for (const candTok of candidateTokens){
-      const localScore = similarity(inTok, candTok) 
-      if(localScore>bestLocalScore){
-      // if(localScore>bestCandidateMatch.score){
-        //bestCandidateMatch.token=candTok
-        //bestCandidateMatch.score = localScore
-        bestLocalScore = localScore
-      }
-    }
-    totalLength+=inTok.length
-    // weightedScore+=bestCandidateMatch.score*inTok.length
-    weightedScore+=bestLocalScore*inTok.length
-  }
-  return weightedScore/totalLength
+
+const findSimilarTheaters = async (Theater, {name, city}, {threshold = 0.5, limit=Infinity}={}) => {
+  if(!name) return []
+  const filter = city ? {'address.sortableCity':normalize(city)}:{}
+  const theaters = await Theater
+    .find(filter, 'name sortableName address.city address.sortableCity')
+    .lean()
+    
+  const result = theaters
+    .map(theater => {
+      const nameSim = similarity(normalize(name), theater.sortableName)
+      const citySim = city? similarity(normalize(city), theater.address.sortableCity):1
+      const score = city? nameSim*0.7+citySim*0.3:nameSim
+      return {theater, score}
+    })
+    .filter(({score}) => score >=threshold)
+    .sort((a,b) => b.score - a.score)
+    .map(({theater, score}) =>({
+      id:theater._id,
+      name:theater.name,
+      city:theater.address.city,
+      score
+    }))
+  return result.slice(0, limit)
+
 }
+
 
 function normalizeFields(obj, fields) {
   return Object.fromEntries(
@@ -78,5 +111,5 @@ function normalizeFields(obj, fields) {
   );
 }
 
-module.exports = { normalizeFields, similarity, findSimilarArtists, normalize, getTrigrams }
+module.exports = { findSimilarArtists, findSimilarTheaters, normalize, getTrigrams, normalizeFields }
 

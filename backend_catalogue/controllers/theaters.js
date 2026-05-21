@@ -3,6 +3,8 @@ const Play = require('../models/play')
 const User = require('../models/user')
 const Artist = require('../models/artist')
 const Theater = require('../models/theater')
+const { escapeRegex } = require('../utils/escapeRegex')
+const { normalize } = require('../utils/stringMatching')
 const paginate = require('../utils/paginate')
 const { paginationMiddleware } = require('../utils/middleware')
 
@@ -13,49 +15,39 @@ theatersRouter.get('/', paginationMiddleware({maxLimit:100}),
       populate:[
         {path:createdBy, select:'username firstName lastName'}
       ], 
-      sort: {name: 1},
+      sort: {sortableName: 1},
       ...request.pagination
     })
 
     response.json(result)
-    const when = request.query.when || 'upcoming'
-    if(!['upcoming', 'past'].includes(when)){
-      return response.status(400).json({ error: 'invalid `when` parameter' })
-    }
-  
-    response.json(result)
   }
 )
 
+theatersRouter.get('/cities', async (request, response) => {
+  const q = (request.query.q || '').trim()
+  const filter = q 
+    ? { 'address.sortableCity': new RegExp(`^${escapeRegex(normalize(q))}`) }
+    : {}
+  const cities = await Theater.distinct('address.city', filter)
+  const seen = new Set()
+  const deduped = []
+  for (const city of cities.filter(Boolean)) {
+    const sortable = normalize(city)
+    if (!seen.has(sortable)) {
+      seen.add(sortable)
+      deduped.push(city)
+    }
+  } 
+  response.json(deduped.sort())
+})
+
 theatersRouter.get('/search', async (request, response) =>{
-  const name = request.query.name || ''
-  const city = request.query.city || ''
-  if (!city){
-    const safeQuery = await escapeRegex(name)
-    const regex = new RegExp(`^${safeQuery}`, 'i') // 'i' = insensible à la casse
-
-
-  
-
-  const artists = await Artist
-    .find({
-      $or: [{firstName:regex},{lastName:regex}]
-    })
-    .limit(10)
-    .select('firstName lastName')
-
-  const sorted = artists
-    .map(a => ({
-      artist: a,
-      score: Math.max(
-        similarity(a.firstName, query),
-        similarity(a.lastName, query),
-        similarity(`${a.firstName} ${a.lastName}`, query)
-      )
-    }))
-    .sort((a, b) => b.score - a.score)
-    .map(item => item.artist)
-  }
+  const name = (request.query.name || '').trim()
+  const city = (request.query.city || '').trim()
+  if (name.length > 2) return response.json([])
+  const similar = await findSimilarTheaters(Theater, {name, city}, {threshold :0.4, limit: 10})
+ 
+  return response.json(similar)
 })
 
 theatersRouter.get('/:id', async (request, response) => {

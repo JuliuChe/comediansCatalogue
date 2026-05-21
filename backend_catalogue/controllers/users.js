@@ -6,7 +6,7 @@ const { notifyExistingPlaysForArtist } = require('../services/notifications')
 
 
 usersRouter.post('/', async (request, response) => {
-  const { username, firstName, lastName, email, password } = request.body
+  const { username, firstName, lastName, email, dateOfBirth, password } = request.body
   if(!password || password.trim().length<3){
     return response.status(422).json({ error : 'password with at least 3 characters required' })
   }
@@ -18,7 +18,7 @@ usersRouter.post('/', async (request, response) => {
     firstName,
     lastName,
     email,
-    datOfBirth,
+    dateOfBirth,
     passwordHash
   })
 
@@ -43,14 +43,34 @@ usersRouter.patch('/me', async (request, response) => {
     const artist = await Artist.findById(addArtistId)
     if(!artist) return response.status(404).json({error:'artist id to add does not exist'})
     if(!user.artistProfiles.some(id => id.equals(addArtistId))) {
-       user.artistProfiles.push(addArtistId)
-    } 
-  }
+      if(user.artistProfiles.length>0){
+        for (const alreadyPresentId of user.artistProfiles){
+          let artistToEdit = await Artist.findById(alreadyPresentId)
+          artistToEdit.alsoKnownAs.addToSet(addArtistId)
+          artist.alsoKnownAs.addToSet(alreadyPresentId)
+          await artistToEdit.save()
+        }
+        await artist.save()
+      }
+      user.artistProfiles.push(addArtistId)
+    }
+  } 
+  
   if (removeArtistId !== undefined) {
     const artist = await Artist.findById(removeArtistId)
     if(!artist) return response.status(404).json({error:'artist id to remove does not exist'})
     if(user.artistProfiles.some(id => id.equals(removeArtistId))) {
-      user.artistProfiles = user.artistProfiles.filter( aId => aId.toString() !== removeArtistId)
+      user.artistProfiles.pull(removeArtistId) 
+      if(user.artistProfiles.length>0){
+        for (const alreadyPresentId of user.artistProfiles){
+          let artistToEdit = await Artist.findById(alreadyPresentId)
+          artistToEdit.alsoKnownAs.pull(removeArtistId)
+          artist.alsoKnownAs.pull(alreadyPresentId)
+          await artistToEdit.save()
+        }
+      }
+      await artist.save()
+       
     } 
   }
   if (username !== undefined) user.username = username
