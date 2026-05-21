@@ -28,7 +28,7 @@ Cette refonte vise un catalogue plus fidèle à la réalité de la scène cultur
 - **Utilitaires** dans `utils/stringMatching.js` : `normalize`, `similarity`, `getTrigrams`, `tokenLevelSimilarity`, `findSimilarArtists`
 - **Endpoints** :
   - `GET /artists/` (sort par sortableName) ✓
-  - `POST /artists/` (accepte `name`, vérifie doublons via findSimilarArtists, mécanisme forceCreate côté frontend à implémenter) ✓
+  - `POST /artists/` (accepte `name`, **single responsibility — pas de check de doublon côté backend** ; le frontend est responsable d'appeler `/check-duplicates` avant) ✓
   - `GET /artists/check-duplicates?name=...` (400 si name manquant, retourne array `[{id, name, score}]`) ✓
 
 ### En cours / à faire
@@ -66,8 +66,9 @@ Conséquences concrètes :
 - `nameTrigrams: [String]` — dérivé via hook, indexé (multikey). Tableau de trigrammes (séquences de 3 caractères) de chaque token. Sert de **pré-filtre rapide indexable** pour la détection de doublons et la search à grande échelle (~200k Artists potentiels pour la scène culturelle suisse).
 - `published: Boolean` — visibilité publique de ce profil, défaut `true`
 - `alsoKnownAs: [ObjectId ref Artist]` — liens optionnels vers les autres identités de la même personne (mutuel)
-- `dateOfBirth: Date` — inchangé
 - `createdBy: ObjectId ref User` — inchangé
+
+> **Note** : le champ `dateOfBirth` a été supprimé du schéma. Constat à l'usage : presque jamais renseigné par les curators / fans qui créent les fiches, et pas utile pour un catalogue public (vs. Wikipedia). Le champ est retiré du schéma + nettoyé en DB via `db.artists.updateMany({}, { $unset: { dateOfBirth: "" } })`.
 
 **`models/user.js`**
 - `artistProfile` (singulier) → `artistProfiles: [ObjectId ref Artist]` (pluriel, tableau)
@@ -135,7 +136,7 @@ L'utilité : pages profil (« cet artiste joue aussi sous : X, Y »), SEO (liens
   - Le pré-filtre par trigrammes résout naturellement le bug multi-tokens (« Yann m » trouve « Yann Marguet » via les trigrammes partagés)
   - Retour : tableau `[{id, name, score}]` — même shape que check-duplicates, le frontend peut afficher le score si pertinent
 - `GET /check-duplicates?name=...` — 400 si manquant/vide, retourne array `[{id, name, score}]` ✓ fait
-- `POST /` — accepte `name`, vérifie doublons (avec mécanisme `forceCreate` à raccorder au frontend) ✓ fait
+- `POST /` — accepte `name`. **Endpoint à responsabilité unique : pas de check de doublon ici.** Le frontend est responsable d'avoir appelé `/check-duplicates` avant. Le filet de sécurité pour les vrais doublons ratés vit dans le merge admin (phase 2). ✓ fait
 - `GET /me` — **à adapter** : `user.artistProfile` → `user.artistProfiles?.length > 0`, retourner *tous* les profils + leurs pièces (ou laisser le frontend choisir un profil par défaut)
 - `GET /:id` — pas de changement structurel, juste vérifier que le retour expose `name` et pas firstName/lastName
 - `GET /:id/plays` — **à adapter** : `User.findOne({ artistProfile: id })` → `User.findOne({ artistProfiles: id })` (Mongoose matche les éléments du tableau naturellement)
