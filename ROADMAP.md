@@ -120,6 +120,37 @@ Mi-2027 →        Phase 5 — Services Python complémentaires (conditionnel)
 
 ---
 
+## Extensions post-lancement (backlog)
+
+Features identifiées comme utiles mais hors du scope du v1 (octobre 2026). Pas de priorité absolue — à reprendre quand le besoin se fait pressant.
+
+### Gestion par tiers (agents, curators avec édition)
+
+**Cas d'usage** : un User qui n'**est pas** l'artiste mais doit pouvoir gérer son profil. Exemples :
+- Un agent qui représente 20 artistes
+- Un curator / journaliste / archiviste qui maintient un grand nombre de fiches du catalogue
+- Un attaché de presse d'un théâtre qui édite les profils de sa compagnie
+
+**Limite actuelle** : le champ `User.artistProfiles` (avec index unique) modélise l'**ownership d'identité** — un Artist ne peut être lié qu'à un seul User. Forcer un agent à utiliser ce champ confondrait identité et gestion, et l'unicité bloquerait techniquement le cas (un Artist déjà revendiqué par l'humain lui-même ne pourrait pas être ajouté à l'agent).
+
+**Pistes envisagées pour la phase 2 design** :
+- Champ `managedArtists: [ObjectId]` sur User, à côté de `artistProfiles`. Simple mais limité.
+- Collection séparée `Representation { user, artist, role, startDate, endDate }` avec un rôle (`owner` / `manager` / `curator`) et un historique des représentations.
+- Type de compte spécifique `accountType: 'individual' | 'agency'` qui change l'UI et les permissions.
+
+**Bonne nouvelle** : le design v2 actuel (cf. `backend_catalogue/refonte-modele-artiste.md`) est **agent-compatible** sans modification. La feature s'ajoutera en surcouche sans toucher à l'existant.
+
+**Quand** : à reprendre quand un cas réel se présente (premier agent qui le demande, ou besoin éditorial d'un curator multi-fiches). Pas avant.
+
+### Autres extensions notées au fil du chantier v2
+
+- **Self-claim flow** : un user qui revendique un Artist qu'il n'a pas créé (envoie une demande, le créateur ou un admin valide). Mentionné dans `backend_catalogue/refonte-modele-artiste.md`.
+- **Merge admin** : fusion de deux Artists qui s'avèrent être la même identité scénique (vrais doublons que le matching automatique n'a pas attrapés).
+- **UI d'édition `alsoKnownAs`** : permettre à l'artiste de lier explicitement ses différents profils (« je suis aussi Raclor »).
+- **UI de gestion `published`** : toggle de visibilité publique d'un profil par l'artiste lui-même. Probablement à arriver en même temps que le self-claim.
+
+---
+
 ## Stack pédagogique parallèle (FSO Helsinki)
 
 | Part | Sujet | Statut | Quand |
