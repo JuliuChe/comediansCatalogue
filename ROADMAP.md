@@ -144,10 +144,11 @@ Features identifiées comme utiles mais hors du scope du v1 (octobre 2026). Pas 
 
 ### Autres extensions notées au fil du chantier v2
 
-- **Self-claim flow** : un user qui revendique un Artist qu'il n'a pas créé (envoie une demande, le créateur ou un admin valide). Mentionné dans `backend_catalogue/refonte-modele-artiste.md`.
 - **Merge admin** : fusion de deux Artists qui s'avèrent être la même identité scénique (vrais doublons que le matching automatique n'a pas attrapés).
 - **UI d'édition `alsoKnownAs`** : permettre à l'artiste de lier explicitement ses différents profils (« je suis aussi Raclor »).
-- **UI de gestion `published`** : toggle de visibilité publique d'un profil par l'artiste lui-même. Probablement à arriver en même temps que le self-claim.
+- **UI de gestion `published`** : toggle de visibilité publique d'un profil par l'artiste lui-même.
+
+> **Note** : le **flux self-claim** (un user qui revendique un Artist qu'il n'a pas créé) est en réalité **pré-launch**, pas post-launch. Voir `backend_catalogue/ROADMAP.md` section 2 pour le design détaillé du modèle `SuggestedEdit` qui le porte. Ordre d'implémentation prévu : Theaters CRUD → SuggestedEdit → Like endpoint.
 
 ---
 

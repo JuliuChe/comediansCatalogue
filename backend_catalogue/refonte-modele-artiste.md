@@ -232,7 +232,8 @@ L'édition de `alsoKnownAs` (qui peut linker quoi) est en phase 2.
 
 ## Ce qui n'est PAS dans le scope de cette refonte
 
-- Le flux self-claim (un utilisateur qui revendique un Artist qu'il n'a pas créé) — phase 2.
 - Le merge admin de deux Artists qui s'avèrent être la même identité scénique (réel doublon) — phase 2.
 - L'UI d'édition d'`alsoKnownAs` (gestion des liens entre alias) — phase 2.
-- L'UI de gestion de `published` (toggle visibilité d'un profil) — peut venir avec le self-claim.
+- L'UI de gestion de `published` (toggle visibilité d'un profil) — phase 2.
+
+> **Note** : le **flux self-claim** (un utilisateur qui revendique un Artist qu'il n'a pas créé) est **pré-launch**, pas phase 2. Voir `backend_catalogue/ROADMAP.md` section 2 (« SuggestedEdit ») pour le design détaillé. Ordre prévu : Theaters CRUD → SuggestedEdit → Like endpoint.
