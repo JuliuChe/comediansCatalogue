@@ -6,54 +6,91 @@ Document de planification des évolutions backend à venir.
 
 ## 1. Theaters — CRUD complet
 
-### Constat
+### Constat initial
 
-- `controllers/theaters.js` est aujourd'hui un **copier-coller** du controller plays (router nommé `playsRouter`, logique des plays). Aucun endpoint theater réel.
-- Route commentée dans `app.js:36` (`app.use('/api/theatres', ...)` — au passage typo `theatres` vs nom de fichier `theaters.js`).
-- Le frontend `PlayForm` a un autocomplete theater mais la création inline n'est pas encore possible (cf. `frontend/Todo.md`).
+- `controllers/theaters.js` était un copier-coller du controller plays. Endpoints à reconstruire.
+- Route à décommenter dans `app.js`.
 
-### Décisions de design
+### Décisions de design actées
 
-- **Authentification** (option c hybride) :
+- **Pattern POST** : aligné avec artists v2 (single-responsibility + endpoint `/check-duplicates` séparé), pas le pattern initial `forceCreate`. Cohérence architecturale avec le refacto artist.
+- **Détection de doublons** : version simplifiée par rapport à artists. À l'échelle ~500 théâtres suisses max, scan complet + Levenshtein suffisent. Pas de trigrammes, pas de tokens.
+  - Match pondéré : `nameSim * 0.7 + citySim * 0.3` si city fournie, sinon `nameSim` seul.
+  - Pré-filtre par `address.sortableCity` côté DB quand city fournie (réduit le pool de candidats).
+- **Authentification** :
   - `POST` / `PUT` : n'importe quel user authentifié
-  - `DELETE` : seul `createdBy` (à ajouter au schéma)
-- **Détection de doublons** : pattern miroir de `findSimilarArtists`
-  - Match `name + city` quand `city` fourni
-  - Match `name` seul sinon
-  - Renvoie 409 + `{ similar, forceCreate }` pour permettre d'outrepasser
-- **Inline-creation depuis PlayForm** : flow `name` (requis) + `city` (optionnel mais suggéré). Form inline, pas modal.
-- **Naming** : `theaters` partout (orthographe US), corriger la typo `theatres` dans `app.js`.
-- **Scraping futur** : pas d'anticipation dans le schéma (KISS, migration le moment venu).
+  - `DELETE` : seul `createdBy`
+- **Multilingue suisse (Bâle/Basel, Berne/Bern, etc.)** : niveau 2 retenu pour v1.
+  - Champs dérivés `sortableName` et `address.sortableCity` via hook (normalize → lowercase + accents stripped).
+  - Couvre les variantes typographiques (« Bâle » vs « Bale » vs « BÂLE »).
+  - **Ne couvre PAS** les alias multilingues (« Bâle » vs « Basel » restent deux strings différentes). À reprendre via une table SWISS_CITY_ALIASES en post-launch si besoin réel se manifeste.
+- **UX anti-doublons côté frontend** : endpoint `GET /cities` avec dédoublonnage par sortableCity → l'utilisateur sélectionne dans une liste plutôt que de retaper, ce qui réduit les doublons à la source.
 
-### Schéma à modifier
+### Schéma actualisé
 
 ```js
 // Theater
 {
   name: { type: String, required: true },
-  address: { street, city, postalCode, country },
+  sortableName: { type: String, lowercase: true },   // dérivé via hook
+  address: {
+    street: String,
+    city: { type: String, required: true },
+    sortableCity: { type: String, lowercase: true }, // dérivé via hook
+    postalCode: Number,
+    country: String
+  },
   capacity: Number,
-  createdBy: { type: ObjectId, ref: 'User', required: true },  // NEW
+  createdBy: { type: ObjectId, ref: 'User', required: true },
   // + timestamps: true
 }
 ```
 
-### Endpoints
+Plus :
+- Hook `pre('validate')` qui calcule `sortableName` et `address.sortableCity` via `normalize()`
+- Hook anti-update sur `findOneAnd*/update*/replace*` pour forcer le passage par `.save()`
+- Index composé `{sortableName: 1, _id: 1}` pour pagination stable
 
-- [ ] `GET /api/theaters` — liste paginée, lecture publique
-- [ ] `GET /api/theaters/search?q=` — fuzzy search pour autocomplete (matching `name + city`)
-- [ ] `GET /api/theaters/:id` — détail
-- [ ] `POST /api/theaters` — auth requise, 409 + `similar` si doublon, `{ ..., forceCreate: true }` pour outrepasser
-- [ ] `PUT /api/theaters/:id` — auth requise, ouvert à tout user authentifié
-- [ ] `DELETE /api/theaters/:id` — auth + `createdBy === userId`
+### État des endpoints
+
+- [x] `GET /api/theaters` — liste paginée, sort par `sortableName` (bug dans paginate populate : `path:createdBy` sans quotes à corriger)
+- [x] `GET /api/theaters/cities?q=` — distinct sur `address.city` filtré par `sortableCity`, avec dédoublonnage par sortableCity
+- [x] `GET /api/theaters/search?name=&city=` — fuzzy via `findSimilarTheaters` (seuil 0.4, limit 10)
+- [ ] `GET /api/theaters/check-duplicates?name=&city=` — fuzzy via `findSimilarTheaters` (seuil 0.6, pas de limit) — **en cours**
+- [x] `GET /api/theaters/:id` — détail
+- [ ] `POST /api/theaters` — single responsibility (validate + check exact `sortableName` + `sortableCity` → 409 si match exact, sinon create)
+- [ ] `PUT /api/theaters/:id` — auth + permission `createdBy`, validation
+- [x] `DELETE /api/theaters/:id` — auth + `createdBy === userId`
+
+### Utilitaire `findSimilarTheaters`
+
+Vit dans `utils/stringMatching.js` (avec les autres fonctions similarité). Signature :
+
+```js
+findSimilarTheaters(Theater, {name, city}, {threshold = 0.5, limit = Infinity} = {})
+```
+
+- Early return si pas de `name` (la fonction exige un nom à chercher)
+- Pré-filtre Mongo par `address.sortableCity` si city fournie
+- Projection légère via `.lean()` (`'name sortableName address.city address.sortableCity'`)
+- Scoring pondéré name + city (ou name seul si pas de city)
+- Filtre par threshold, sort décroissant, slice à limit
+- Retour : `[{id, name, city, score}]`
+
+### Bugs résiduels à corriger
+
+- `controllers/theaters.js` GET / : `path:createdBy` (ligne 16) sans quotes → ReferenceError au démarrage
+- `controllers/theaters.js` GET /search : condition inversée `if (name.length > 2)` devrait être `< 2`
+- `controllers/theaters.js` : `findSimilarTheaters` utilisé sans import explicite (à ajouter en haut du fichier)
+- `controllers/theaters.js` POST + PUT : encore copier-coller du controller plays, à réécrire
 
 ### Fichiers concernés
 
-- `backend_catalogue/models/theater.js` — ajouter `createdBy` + timestamps
-- `backend_catalogue/controllers/theaters.js` — **réécrire de zéro**, router `theatersRouter`
-- `backend_catalogue/utils/findSimilarTheaters.js` — nouveau, miroir de `findSimilarArtists`
-- `backend_catalogue/app.js` — décommenter ligne 36, corriger typo
-- `frontend_catalogue/Todo.md` ligne 73 — l'inline-creation à câbler côté frontend après que l'API soit en place
+- `backend_catalogue/models/theater.js` — ✓ schéma + hook + index
+- `backend_catalogue/utils/stringMatching.js` — ✓ `findSimilarTheaters` ajoutée
+- `backend_catalogue/controllers/theaters.js` — 🔄 en cours (GET endpoints faits, POST/PUT/check-duplicates à faire)
+- `backend_catalogue/app.js` — vérifier que la route est bien enregistrée (typo `theatres` à corriger si toujours là)
+- `frontend_catalogue/Todo.md` ligne 73 — l'inline-creation à câbler côté frontend après que l'API soit complète
 
 ---
 
